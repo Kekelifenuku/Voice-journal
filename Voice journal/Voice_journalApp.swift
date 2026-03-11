@@ -11,7 +11,32 @@ import SwiftUI
 struct Voice_journalApp: App {
     var body: some Scene {
         WindowGroup {
-            VoiceJournalView()
+            RootView()
         }
+    }
+}
+
+struct RootView: View {
+    @State private var showOnboarding: Bool = !UserDefaults.standard.bool(forKey: "vj_onboarded")
+
+    var body: some View {
+        ZStack {
+            VoiceJournalView()
+
+            if showOnboarding {
+                OnboardingView {
+                    UserDefaults.standard.set(true, forKey: "vj_onboarded")
+                    withAnimation(.easeInOut(duration: 0.5)) {
+                        showOnboarding = false
+                    }
+                }
+                .transition(.asymmetric(
+                    insertion: .opacity,
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
+                .zIndex(10)
+            }
+        }
+        .preferredColorScheme(.dark)
     }
 }

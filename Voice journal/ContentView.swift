@@ -1,4 +1,4 @@
-
+import StoreKit
 import SwiftUI
 import AVFoundation
 import UserNotifications
@@ -1831,8 +1831,68 @@ struct SettingsTab: View {
             }
 
             Section("Data") {
-                Button(role:.destructive) { HX.warn(); showDeleteConfirm = true } label: {
-                    Label("Delete All Entries", systemImage:"trash")
+                Button(role: .destructive) {
+                    HX.warn()
+                    showDeleteConfirm = true
+                } label: {
+                    Label("Delete All Entries", systemImage: "trash")
+                }
+            }
+
+            Section("App") {
+               
+                    HStack {
+                        Label("About", systemImage: "app.badge")
+                        Spacer()
+                        Text("1.0.1")
+                            .foregroundColor(.secondary)
+                    
+                }
+
+                Link(
+                    destination: URL(string: "mailto:fenuku.kekeli8989@gmail.com?subject=Bug%20Report")!
+                ) {
+                    Label("Report a Bug", systemImage: "envelope.fill")
+                }
+
+                Button {
+                    if let url = URL(string: "https://appgallery.io/Keli") {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Website", systemImage: "globe")
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+
+            Section("Support") {
+
+                Button {
+                    if let url = URL(string: "https://apps.apple.com/app/id6760410000") {
+                        shareApp(url: url)
+                    }
+                } label: {
+                    HStack {
+                        Label("Share App", systemImage: "square.and.arrow.up")
+                        Spacer()
+                        Image(systemName: "arrow.up.right.square")
+                            .foregroundColor(.secondary)
+                    }
+                }
+
+                Button {
+                    requestReview()
+                } label: {
+                    HStack {
+                        Label("Rate App", systemImage: "star.fill")
+                        Spacer()
+                        Image(systemName: "hand.thumbsup.fill")
+                            .foregroundColor(.secondary)
+                    }
                 }
             }
         }
@@ -1849,6 +1909,22 @@ struct SettingsTab: View {
     }
 }
 
+
+func shareApp(url: URL) {
+    guard
+        let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+        let root = scene.windows.first?.rootViewController
+    else { return }
+
+    let vc = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+    root.present(vc, animated: true)
+}
+
+func requestReview() {
+    if let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene {
+        SKStoreReviewController.requestReview(in: scene)
+    }
+}
 // MARK: ── SHEETS ─────────────────────────────────────────────────
 
 struct SaveSheet: View {
