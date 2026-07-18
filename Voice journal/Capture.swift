@@ -71,6 +71,7 @@ struct CaptureView: View {
         .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isActive)
         .onAppear {
             engine.onRecordFinish = handleFinish
+            engine.onLiveSamples = { [weak transcription] samples in transcription?.feedLive(samples) }
             // Warm up the on-device model so it's ready by the time recording ends.
             if settings.autoTranscribe && transcription.isSupported { transcription.prepare() }
             consumePendingRecord()
@@ -110,14 +111,23 @@ struct CaptureView: View {
                     .font(Typo.sans(12, .medium)).foregroundColor(Paper.ink3)
             }
 
-            // Live text — grows as WhisperKit streams; falls back to a gentle hint.
-            Text(liveDisplay)
-                .font(Typo.sans(21, .regular))
-                .foregroundColor(liveText.isEmpty ? Paper.muted : Paper.ink)
-                .lineSpacing(5)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .animation(.easeOut(duration: 0.2), value: liveText)
+            // Live text — height-capped and pinned to the newest words. Without the cap a long
+            // entry grows this Text until the waveform and record button are pushed off-screen.
+            ScrollViewReader { proxy in
+                ScrollView(.vertical, showsIndicators: false) {
+                    Text(liveDisplay)
+                        .font(Typo.sans(21, .regular))
+                        .foregroundColor(liveText.isEmpty ? Paper.muted : Paper.ink)
+                        .lineSpacing(5)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .id(liveTailID)
+                }
+                .frame(maxHeight: 170)
+                .onChange(of: liveText) { _, _ in
+                    withAnimation(.easeOut(duration: 0.2)) { proxy.scrollTo(liveTailID, anchor: .bottom) }
+                }
+            }
 
             LiveWaveform(bars: engine.bars, color: Paper.terra)
                 .frame(height: 60)
@@ -126,6 +136,7 @@ struct CaptureView: View {
         }
     }
 
+    private let liveTailID = "liveTail"
     private var liveText: String { transcription.liveText }
     private var liveDisplay: String {
         if !liveText.isEmpty { return liveText }

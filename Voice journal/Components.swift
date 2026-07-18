@@ -52,6 +52,62 @@ struct MiniWaveform: View {
     }
 }
 
+// MARK: - Undo toast (shown after a soft-delete, root level)
+
+struct UndoToast: View {
+    let title: String
+    let onUndo: () -> Void
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(systemName: "trash")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundColor(Paper.ink3)
+            Text(title)
+                .font(Typo.sans(14, .medium))
+                .foregroundColor(Paper.ink)
+                .lineLimit(1)
+            Spacer(minLength: 8)
+            Button(action: onUndo) {
+                Text("Undo")
+                    .font(Typo.sans(14, .semibold))
+                    .foregroundColor(Paper.terra)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("Restores the deleted entry")
+        }
+        .padding(.leading, 18).padding(.trailing, 12).padding(.vertical, 11)
+        .background(Paper.white)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Paper.hair, lineWidth: 1))
+        .shadow(color: Color(0x2B2620, opacity: 0.14), radius: 18, y: 8)
+    }
+}
+
+// MARK: - Primary capsule action (empty-state CTAs, standardized)
+
+struct PrimaryCapsuleButton: View {
+    let title: String
+    var icon: String? = nil
+    let action: () -> Void
+    var body: some View {
+        Button { HX.press(); action() } label: {
+            HStack(spacing: 8) {
+                if let icon {
+                    Image(systemName: icon).font(.system(size: 14, weight: .bold))
+                }
+                Text(title).font(Typo.sans(15, .semibold))
+            }
+            .foregroundColor(Paper.white)
+            .padding(.horizontal, 22).padding(.vertical, 13)
+            .background(Paper.terra)
+            .clipShape(Capsule())
+            .shadow(color: Paper.terra.opacity(0.3), radius: 12, y: 5)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 // MARK: - Mood tag (filled soft chip)
 
 struct MoodTag: View {
@@ -91,12 +147,20 @@ struct ThemeChip: View {
 // MARK: - Weekly mood strip
 
 struct WeekMoodStrip: View {
-    let moods: [Mood?]     // 7 entries, oldest → newest
+    let moods: [Mood?]     // 7 entries, oldest → newest (index 6 = today)
+
+    /// Weekday name for a strip index, derived from today going back 6 days.
+    private func dayName(_ indexFromOldest: Int) -> String {
+        let back = 6 - indexFromOldest
+        let day = Calendar.current.date(byAdding: .day, value: -back, to: Date()) ?? Date()
+        return day.formatted(.dateTime.weekday(.wide))
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("This week's mood").eyebrow(Paper.ink3)
             HStack(spacing: 10) {
-                ForEach(Array(moods.enumerated()), id: \.offset) { _, m in
+                ForEach(Array(moods.enumerated()), id: \.offset) { i, m in
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
                         .fill(m?.color ?? Paper.cardAlt)
                         .frame(maxWidth: .infinity)
@@ -105,8 +169,11 @@ struct WeekMoodStrip: View {
                             RoundedRectangle(cornerRadius: 8, style: .continuous)
                                 .stroke(Paper.hair, lineWidth: m == nil ? 1 : 0)
                         )
+                        .accessibilityElement()
+                        .accessibilityLabel("\(dayName(i)): \(m?.label ?? "no entry")")
                 }
             }
+            .accessibilityElement(children: .contain)
         }
         .padding(18)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -209,14 +276,17 @@ struct AudioPill: View {
                 }
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(isPlaying ? "Pause" : "Play recording")
 
             VStack(alignment: .leading, spacing: 8) {
                 MiniWaveform(bars: entry.waveform, count: 34,
                              color: Paper.onDark2, progress: progress)
                     .frame(height: 26)
+                    .accessibilityHidden(true)
                 Text(timeLabel)
                     .font(Typo.sans(11, .medium))
                     .foregroundColor(Paper.onDark2)
+                    .accessibilityLabel("Elapsed \(timeLabel)")
             }
         }
         .padding(.horizontal, 16)

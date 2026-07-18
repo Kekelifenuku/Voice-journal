@@ -8,6 +8,7 @@ struct FavoritesView: View {
     @ObservedObject var engine: AudioEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
+    var goToCapture: () -> Void = {}
 
     private var favorites: [VoiceEntry] {
         store.entries.filter { $0.isFavorite }.sorted { $0.date > $1.date }
@@ -84,13 +85,20 @@ struct FavoritesView: View {
             Image(systemName: "heart")
                 .font(.system(size: 44, weight: .light))
                 .foregroundColor(Paper.terra.opacity(0.6))
+                .accessibilityHidden(true)
             Text("No favorites yet")
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
-            Text("Tap the heart on any entry\nto keep it here.")
+            Text(store.entries.isEmpty
+                 ? "Record an entry, then tap the\nheart to keep it here."
+                 : "Tap the heart on any entry\nto keep it here.")
                 .font(Typo.serifItalic(16))
                 .foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
+            if store.entries.isEmpty {
+                PrimaryCapsuleButton(title: "Record your first entry", icon: "mic.fill", action: goToCapture)
+                    .padding(.top, 6)
+            }
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)

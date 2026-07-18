@@ -42,8 +42,11 @@ final class TranscriptionManager: ObservableObject {
     private var pending: [(id: UUID, url: URL)] = []   // serial transcription queue
     private var draining = false
     private var attempted: Set<UUID> = []              // entries transcribed this session (avoids re-spinning)
-    private var streamer: AudioStreamTranscriber?
-    private var streamTask: Task<Void, Never>?
+    private var liveBuffer: [Float] = []          // accumulated 16 kHz mono samples during capture
+    private var liveTask: Task<Void, Never>?
+    private var liveActive = false
+    private var inferring = false                  // single-flight gate: one WhisperKit inference at a time
+    private var lastInferCount = 0
     #endif
 
     /// Model + language come from Settings (persisted to UserDefaults).
@@ -84,54 +87,87 @@ final class TranscriptionManager: ObservableObject {
     /// Reload after the user changes the model/language in Settings.
     func reload() {
         #if canImport(WhisperKit)
+        liveActive = false; liveTask?.cancel(); liveTask = nil
+        liveBuffer.removeAll(); lastInferCount = 0; inferring = false
         pipe = nil; attempted.removeAll(); pending.removeAll(); working.removeAll()
         state = .idle
         prepare()
         #endif
     }
 
-    /// Begin live streaming transcription (opt-in beta). Best-effort: if the mic is unavailable
-    /// or conflicts with the recorder, it silently no-ops — the recorded file is unaffected and
-    /// the transcript still fills in from the saved audio on stop.
+    /// Begin live transcription (opt-in). The recorder (AudioEngine) owns the single mic and pushes
+    /// 16 kHz samples via `feedLive`; we transcribe a rolling window as they arrive. This replaces the
+    /// old AudioStreamTranscriber, which opened its *own* mic and fought AVAudioRecorder for it.
     func startLive() {
         liveText = ""
         #if canImport(WhisperKit)
-        guard UserDefaults.standard.bool(forKey: "s_live"),
-              let pipe, let tok = pipe.tokenizer else { return }
-        let lang = languageCode
-        let opts = DecodingOptions(language: lang == "auto" ? nil : lang,
-                                   detectLanguage: lang == "auto",
-                                   wordTimestamps: false)
-        let ast = AudioStreamTranscriber(
-            audioEncoder: pipe.audioEncoder,
-            featureExtractor: pipe.featureExtractor,
-            segmentSeeker: pipe.segmentSeeker,
-            textDecoder: pipe.textDecoder,
-            tokenizer: tok,
-            audioProcessor: pipe.audioProcessor,
-            decodingOptions: opts,
-            stateChangeCallback: { [weak self] _, newState in
-                let text = (newState.confirmedSegments.map { $0.text } + [newState.currentText])
-                    .joined(separator: " ")
-                Task { @MainActor in self?.liveText = Summarizer.tidy(text) }
-            }
-        )
-        streamer = ast
-        streamTask = Task {
-            do { try await ast.startStreamTranscription() }
-            catch { /* mic conflict/unavailable — ignore; file recording continues */ }
+        liveBuffer.removeAll(keepingCapacity: true)
+        lastInferCount = 0
+        liveActive = UserDefaults.standard.bool(forKey: "s_live")
+        guard liveActive else { return }
+        if pipe == nil { prepare() }   // start loading now; samples buffer until it's ready
+        #endif
+    }
+
+    /// Push freshly captured 16 kHz mono samples from the recorder. No-ops unless live is active.
+    func feedLive(_ samples: [Float]) {
+        #if canImport(WhisperKit)
+        guard liveActive, !samples.isEmpty else { return }
+        liveBuffer.append(contentsOf: samples)
+        // Only the tail is ever decoded, so cap the buffer — a long entry would otherwise hold the
+        // entire recording in memory as Float32 (~3.8 MB/min) for no benefit.
+        if liveBuffer.count > liveCap {
+            let drop = liveBuffer.count - liveCap
+            liveBuffer.removeFirst(drop)
+            lastInferCount = max(0, lastInferCount - drop)
         }
+        scheduleLive()
         #endif
     }
 
     func stopLive() {
         #if canImport(WhisperKit)
-        if let s = streamer { Task { await s.stopStreamTranscription() } }
-        streamTask?.cancel()
-        streamer = nil; streamTask = nil
+        liveActive = false
+        liveTask?.cancel(); liveTask = nil
+        liveBuffer.removeAll(keepingCapacity: false)
+        lastInferCount = 0
+        // Deliberately leave `inferring` as-is: any in-flight pass sets it false when it returns,
+        // and the final file transcription (run) waits on it, so the two never overlap.
         #endif
         liveText = ""
     }
+
+    #if canImport(WhisperKit)
+    private var liveWindow: Int { 384_000 }   // decode the last ~24 s
+    private var liveCap: Int { 400_000 }      // keep a little more than we decode
+
+    /// Transcribe the most recent ~24 s of audio, single-flight. Re-arms itself if more audio arrived.
+    private func scheduleLive() {
+        guard liveActive, !inferring, let pipe, pipe.tokenizer != nil else { return }
+        // Gate on ~0.8 s of new audio (12.8k samples @16 kHz) so we don't thrash the model, and require
+        // ~1 s before the very first pass — decoding 0.5 s of audio mostly invents a phantom word.
+        let fresh = liveBuffer.count - lastInferCount
+        guard fresh >= 12_800 || (lastInferCount == 0 && liveBuffer.count >= 16_000) else { return }
+        inferring = true
+        lastInferCount = liveBuffer.count
+        let window = Array(liveBuffer.suffix(liveWindow))
+        let lang = languageCode
+        liveTask = Task { [weak self] in
+            let opts = DecodingOptions(language: lang == "auto" ? nil : lang,
+                                       detectLanguage: lang == "auto",
+                                       skipSpecialTokens: true,
+                                       wordTimestamps: false)
+            let results: [TranscriptionResult]? = try? await pipe.transcribe(audioArray: window, decodeOptions: opts)
+            guard let self else { return }
+            self.inferring = false
+            if self.liveActive, let results {
+                let text = Summarizer.tidy(results.map(\.text).joined(separator: " "))
+                if !text.isEmpty { self.liveText = text }
+            }
+            if self.liveActive { self.scheduleLive() }     // catch up on audio that arrived mid-pass
+        }
+    }
+    #endif
 
     /// Queue an entry's audio for transcription (serial), then derive a summary + themes, and persist.
     func transcribe(_ entry: VoiceEntry, store: JournalStore, force: Bool = false) {
@@ -193,17 +229,25 @@ final class TranscriptionManager: ObservableObject {
             if ticks > 1200 { return nil }          // ~10 min hard ceiling
         }
         guard let pipe else { return nil }
+        // Serialize with any live pass — WhisperKit runs a single inference at a time.
+        while inferring { try? await Task.sleep(nanoseconds: 60_000_000) }
+        inferring = true
+        defer { inferring = false }
         state = .transcribing
         let lang = languageCode
         let options = DecodingOptions(
             language: lang == "auto" ? nil : lang,
             detectLanguage: lang == "auto",
+            skipSpecialTokens: true,          // keeps <|nospeech|> etc. out of both text and words
             wordTimestamps: true
         )
         do {
             // Explicit type selects the [TranscriptionResult] overload (vs the optional one).
             let results: [TranscriptionResult] = try await pipe.transcribe(audioPath: url.path, decodeOptions: options)
             let text = Summarizer.tidy(results.map(\.text).joined(separator: " "))
+            // Nothing real was said (silence → hallucinated boilerplate). Drop the word stamps too,
+            // or the detail view's InteractiveTranscript would still render the fabricated line.
+            guard !text.isEmpty else { return ("", []) }
             let words = results.flatMap { $0.segments }.flatMap { $0.words ?? [] }
                 .map { WordStamp(text: $0.word, start: Double($0.start), end: Double($0.end)) }
             return (text, words)
@@ -221,49 +265,152 @@ final class TranscriptionManager: ObservableObject {
 /// Extractive (selects representative sentences) + keyword/mood-derived themes.
 enum Summarizer {
 
-    /// Clean whitespace, and strip Whisper non-speech markers, from raw ASR output.
+    /// Clean whitespace, strip Whisper non-speech markers, collapse its repetition loops, and drop
+    /// the boilerplate it hallucinates over silence. Returns "" if nothing real was said.
     static func tidy(_ raw: String) -> String {
         var s = raw
         // Remove non-speech tokens like [BLANK_AUDIO], [MUSIC], [ Silence ].
         s = s.replacingOccurrences(of: #"\[[^\]]{0,40}\]"#, with: "", options: .regularExpression)
-        // Remove parentheticals that are clearly sound cues, e.g. (upbeat music), (applause).
+        // Remove parentheticals that are clearly sound cues, e.g. (upbeat music), (sighs).
         s = s.replacingOccurrences(
-            of: #"\([^)]{0,40}(?:music|silence|noise|applause|laughter|inaudible)[^)]{0,40}\)"#,
+            of: #"\([^)]{0,40}(?:music|silence|noise|applause|laughter|inaudible|sighs?|coughs?|laughs?|clears throat|indistinct|unintelligible|crosstalk|blank_audio|static|beep|breathing)[^)]{0,40}\)"#,
             with: "", options: [.regularExpression, .caseInsensitive])
+        s = s.replacingOccurrences(of: #"[\u{266A}\u{266B}\u{2669}\u{266C}]"#, with: "", options: .regularExpression)
         s = s.replacingOccurrences(of: "\n", with: " ")
         s = s.replacingOccurrences(of: #"\s{2,}"#, with: " ", options: .regularExpression)
+
+        // Tidy punctuation orphaned by the strips above. Collapse "punct (space punct)+" runs FIRST
+        // (each inner group needs a real space, so "…", "..." and "?!" are left alone), THEN remove a
+        // lone space-before-punct — doing it in this order avoids fusing ". ." into an uncatchable "..".
+        s = s.replacingOccurrences(of: #"([.!?])(?:\s+[.!?])+"#, with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"\s+([.,!?;:])"#, with: "$1", options: .regularExpression)
+        s = s.replacingOccurrences(of: #"^[\s.,!?;:]+"#, with: "", options: .regularExpression)
+
+        s = collapseRepeats(s)
+        s = stripHallucinations(s)
         return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func summarize(_ text: String, mood: Mood) -> (summary: String, themes: [String]) {
-        let sentences = splitSentences(text)
-        guard !sentences.isEmpty else { return ("", themes(for: text, mood: mood)) }
+        let sentences = dedupeSentences(splitSentences(text))
+        // With 0–1 distinct sentences any "summary" is just the entry again — Reflect already shows
+        // the transcript, so emit nothing rather than printing the same paragraph twice.
+        guard sentences.count > 1 else { return ("", themes(for: text, mood: mood)) }
 
-        // Score sentences by keyword overlap with the whole entry; keep top 2, in original order.
+        // Score by keyword overlap with the whole entry; keep top 2, in original order.
+        // Normalize by √length: a plain mean favours 2-word fragments, a plain sum favours rambling.
         let freq = wordFrequency(text)
         let scored = sentences.enumerated().map { (i, s) -> (Int, Double, String) in
             let words = tokenize(s)
-            let score = words.reduce(0.0) { $0 + (freq[$1] ?? 0) } / Double(max(1, words.count))
-            return (i, score, s)
+            let total = words.reduce(0.0) { $0 + (freq[$1] ?? 0) }
+            return (i, total / Double(max(1, words.count)).squareRoot(), s)
         }
         let top = scored.sorted { $0.1 > $1.1 }.prefix(2).sorted { $0.0 < $1.0 }
-        var summary = top.map { $0.2 }.joined(separator: " ")
-        if summary.count > 320 { summary = String(summary.prefix(317)) + "…" }
+        var summary = clamp(top.map { $0.2 }.joined(separator: " "), to: 320)
+        // If we just echoed the entry back, the summary card adds nothing.
+        if fingerprint(summary) == fingerprint(text) { summary = "" }
         return (summary, themes(for: text, mood: mood))
     }
 
-    // Theme tags: mood label first, then salient noun keywords.
+    /// Theme tags: salient noun keywords. Mood is deliberately not a tag — it has its own UI on the
+    /// entry, and tags aren't recomputed when the mood changes, so a mood tag goes stale immediately.
     static func themes(for text: String, mood: Mood) -> [String] {
         var tags: [String] = []
-        if mood != .none { tags.append(mood.label) }
-        for kw in keywords(text, limit: 3) where !tags.contains(where: { $0.caseInsensitiveCompare(kw) == .orderedSame }) {
-            tags.append(kw.capitalized)
+        for kw in keywords(text, limit: 3)
+        where !tags.contains(where: { $0.caseInsensitiveCompare(kw) == .orderedSame }) {
+            tags.append(kw)
             if tags.count >= 3 { break }
         }
         return tags
     }
 
     // MARK: helpers
+
+    /// Letters+digits only — for comparing two strings ignoring case, spacing and punctuation.
+    private nonisolated static func fingerprint(_ s: String) -> String {
+        s.lowercased().filter { $0.isLetter || $0.isNumber }
+    }
+
+    /// Trim to `limit`, cutting on a word boundary rather than mid-word.
+    private static func clamp(_ s: String, to limit: Int) -> String {
+        guard s.count > limit else { return s }
+        let cut = String(s.prefix(limit - 1))
+        if let sp = cut.lastIndex(of: " ") {
+            return cut[..<sp].trimmingCharacters(in: .whitespacesAndNewlines) + "…"
+        }
+        return cut + "…"
+    }
+
+    /// All sentences, unfiltered (unlike `splitSentences`, which drops very short ones).
+    private static func allSentences(_ text: String) -> [String] {
+        var out: [String] = []
+        let t = NLTokenizer(unit: .sentence)
+        t.string = text
+        t.enumerateTokens(in: text.startIndex..<text.endIndex) { range, _ in
+            let s = text[range].trimmingCharacters(in: .whitespacesAndNewlines)
+            if !s.isEmpty { out.append(s) }
+            return true
+        }
+        return out
+    }
+
+    private static func dedupeSentences(_ sentences: [String]) -> [String] {
+        var seen: Set<String> = []
+        return sentences.filter { seen.insert(fingerprint($0)).inserted }
+    }
+
+    /// Collapse Whisper's degenerate repetition loops ("I guess I guess I guess …"). Only fires on
+    /// runs of ≥3 identical n-grams (>4 for single words, so "no, no, no" survives).
+    private static func collapseRepeats(_ s: String) -> String {
+        var tokens = s.split(separator: " ").map(String.init)
+        guard tokens.count >= 24 else { return s }
+        for n in stride(from: 8, through: 1, by: -1) {
+            var out: [String] = []
+            var i = 0
+            while i < tokens.count {
+                if i + n <= tokens.count {
+                    let window = tokens[i..<(i + n)].map(fingerprint)
+                    var reps = 1
+                    var j = i + n
+                    while j + n <= tokens.count, tokens[j..<(j + n)].map(fingerprint) == window {
+                        reps += 1; j += n
+                    }
+                    if reps >= (n == 1 ? 5 : 3), !window.joined().isEmpty {
+                        out.append(contentsOf: tokens[(j - n)..<j])   // keep the LAST copy — it carries the run's trailing punctuation
+                        i = j
+                        continue
+                    }
+                }
+                out.append(tokens[i]); i += 1
+            }
+            tokens = out
+        }
+        // Then drop a sentence that exactly repeats the one before it.
+        var kept: [String] = []
+        var last = ""
+        for sent in allSentences(tokens.joined(separator: " ")) {
+            let f = fingerprint(sent)
+            if !f.isEmpty, f == last { continue }
+            kept.append(sent); last = f
+        }
+        return kept.joined(separator: " ")
+    }
+
+    /// Phrases Whisper fabricates over silence. Matched as a whole sentence only.
+    private static let hallucinations: Set<String> = [
+        "thankyou", "thankyouverymuch", "thankyouforwatching", "thanksforwatching",
+        "pleasesubscribe", "subscribetomychannel", "bye", "byebye", "theend", "thanks", "you"
+    ]
+
+    /// Drop a clip that is *nothing but* fabricated boilerplate (the silence-hallucination signature).
+    /// If any real sentence survives, the transcript is returned untouched — so a genuine entry that
+    /// happens to end with "Thank you." keeps it verbatim.
+    private static func stripHallucinations(_ s: String) -> String {
+        let sents = allSentences(s)
+        guard !sents.isEmpty else { return s }
+        let real = sents.filter { !hallucinations.contains(fingerprint($0)) }
+        return real.isEmpty ? "" : s
+    }
 
     private static func splitSentences(_ text: String) -> [String] {
         var out: [String] = []
@@ -296,19 +443,38 @@ enum Summarizer {
         return f
     }
 
-    /// Salient nouns via NLTagger, ranked by frequency.
+    /// Nouns too generic to be a useful "recurring theme".
+    private static let genericNouns: Set<String> = ["stuff", "lot", "bit", "way", "moment", "part", "point"]
+
+    /// Salient nouns via NLTagger, ranked by frequency. Folds plurals onto their lemma (day/days),
+    /// keeps the original surface casing (iPhone stays iPhone), and breaks ties by first appearance
+    /// so the same transcript always yields the same tags.
     private static func keywords(_ text: String, limit: Int) -> [String] {
-        let tagger = NLTagger(tagSchemes: [.lexicalClass])
+        let tagger = NLTagger(tagSchemes: [.lexicalClass, .lemma])
         tagger.string = text
         var counts: [String: Int] = [:]
+        var display: [String: String] = [:]   // lemma → surface form as first written
+        var order: [String: Int] = [:]        // lemma → first-appearance index (deterministic ties)
+        var idx = 0
         let opts: NLTagger.Options = [.omitPunctuation, .omitWhitespace, .omitOther]
         tagger.enumerateTags(in: text.startIndex..<text.endIndex, unit: .word, scheme: .lexicalClass, options: opts) { tag, range in
-            if tag == .noun {
-                let w = text[range].lowercased()
-                if w.count > 3 && !stop.contains(w) { counts[w, default: 0] += 1 }
-            }
+            idx += 1
+            guard tag == .noun else { return true }
+            let surface = String(text[range])
+            let lower = surface.lowercased()
+            guard lower.count >= 3, !stop.contains(lower), !genericNouns.contains(lower) else { return true }
+            let lemma = tagger.tag(at: range.lowerBound, unit: .word, scheme: .lemma).0?.rawValue.lowercased()
+            let key = (lemma?.isEmpty == false) ? lemma! : lower
+            counts[key, default: 0] += 1
+            if display[key] == nil { display[key] = surface; order[key] = idx }
             return true
         }
-        return counts.sorted { $0.value > $1.value }.map { $0.key }.prefix(limit).map { $0 }
+        // Capitalize only all-lowercase words, so "mom" → "Mom" but "iPhone"/"NYC" survive intact.
+        func present(_ s: String) -> String { s == s.lowercased() ? s.capitalized : s }
+        return counts
+            .sorted { $0.value != $1.value ? $0.value > $1.value : (order[$0.key] ?? 0) < (order[$1.key] ?? 0) }
+            .prefix(limit)
+            .map { present(display[$0.key] ?? $0.key) }
     }
+
 }

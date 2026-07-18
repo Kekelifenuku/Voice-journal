@@ -116,7 +116,7 @@ struct ReflectView: View {
                     Image(systemName: entry.isFavorite ? "heart.fill" : "heart")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(entry.isFavorite ? Paper.terra : Paper.ink2)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(Paper.card).clipShape(Circle())
                         .overlay(Circle().stroke(Paper.hair, lineWidth: 1))
                 }.buttonStyle(.plain)
@@ -138,7 +138,7 @@ struct ReflectView: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .semibold)).foregroundColor(Paper.ink2)
-                        .frame(width: 40, height: 40)
+                        .frame(width: 44, height: 44)
                         .background(Paper.card).clipShape(Circle())
                         .overlay(Circle().stroke(Paper.hair, lineWidth: 1))
                 }
@@ -268,6 +268,8 @@ struct ReflectView: View {
                             .overlay(Capsule().stroke(on ? m.color.opacity(0.5) : Paper.hair, lineWidth: 1))
                         }
                         .buttonStyle(.plain)
+                        .accessibilityLabel(m.label)
+                        .accessibilityAddTraits(on ? [.isSelected] : [])
                     }
                 }
             }

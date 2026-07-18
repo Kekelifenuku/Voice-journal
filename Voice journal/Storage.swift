@@ -52,21 +52,40 @@ enum Exporter {
 
     // ── Markdown ─────────────────────────────────────────────
 
-    static func entryMarkdown(_ e: VoiceEntry) -> String {
-        var s = "# \(e.title)\n\n"
+    /// Trimmed, or nil when there's nothing but whitespace (avoids dangling section headers).
+    private nonisolated static func filled(_ s: String) -> String? {
+        let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
+        return t.isEmpty ? nil : t
+    }
+
+    /// Markdown treats a single newline as a space, which silently reflows multi-line notes and
+    /// transcripts into one blob. Two trailing spaces force the line break the user actually wrote.
+    private nonisolated static func preservingBreaks(_ s: String) -> String {
+        s.replacingOccurrences(of: "\n", with: "  \n")
+    }
+
+    nonisolated static func entryMarkdown(_ e: VoiceEntry) -> String {
+        // H2 per entry: the document title owns H1, so entries nest under it and the export
+        // gets a real outline.
+        var s = "## \(filled(e.title) ?? "Untitled entry")\(e.isFavorite ? " ★" : "")\n\n"
         s += "*\(e.date.formatted(date: .complete, time: .shortened))*  ·  \(e.durationLong)\n\n"
-        if !e.prompt.isEmpty { s += "> \(e.prompt)\n\n" }
-        if e.mood != .none { s += "**Mood:** \(e.mood.label)\n\n" }
-        if !e.summary.isEmpty { s += "## Summary\n\n\(e.summary)\n\n" }
-        if !e.themes.isEmpty { s += "**Themes:** \(e.themes.joined(separator: ", "))\n\n" }
-        if !e.transcript.isEmpty { s += "## Transcript\n\n\(e.transcript)\n\n" }
-        if !e.note.isEmpty { s += "## Note\n\n\(e.note)\n\n" }
+        if let prompt = filled(e.prompt) { s += "> \(prompt)\n\n" }
+        var meta: [String] = []
+        if e.mood != .none { meta.append("**Mood:** \(e.mood.label)") }
+        if e.isFavorite { meta.append("**Favorite:** yes") }
+        if !e.themes.isEmpty { meta.append("**Themes:** \(e.themes.joined(separator: ", "))") }
+        if !meta.isEmpty { s += meta.joined(separator: "  ·  ") + "\n\n" }
+        if let summary = filled(e.summary) { s += "### Summary\n\n\(preservingBreaks(summary))\n\n" }
+        if let transcript = filled(e.transcript) { s += "### Transcript\n\n\(preservingBreaks(transcript))\n\n" }
+        if let note = filled(e.note) { s += "### Note\n\n\(preservingBreaks(note))\n\n" }
         return s
     }
 
     static func allMarkdown(_ entries: [VoiceEntry]) -> String {
         let sorted = entries.sorted { $0.date > $1.date }
-        return "# Voice Journal\n\nExported \(Date().formatted(date: .abbreviated, time: .shortened)) · \(entries.count) entries\n\n---\n\n"
+        let count = entries.count
+        let noun = count == 1 ? "entry" : "entries"
+        return "# Voice Journal\n\nExported \(Date().formatted(date: .abbreviated, time: .shortened)) · \(count) \(noun)\n\n---\n\n"
             + sorted.map(entryMarkdown).joined(separator: "\n---\n\n")
     }
 
@@ -152,6 +171,109 @@ enum Exporter {
             switch self {
             case .zipFailed: return "Couldn't create the backup file."
             case .badBackup: return "That file isn't a Voice Journal backup."
+            }
+        }
+    }
+}
+
+// MARK: - iCloud backup (ubiquity container)
+
+/// Automatic backup into the app's iCloud Drive container. Requires the
+/// **iCloud → iCloud Documents** capability in Xcode (Signing & Capabilities).
+/// Until that's enabled, `containerDocuments()` is nil and every call reports the
+/// feature unavailable rather than throwing at the UI — so the app degrades cleanly.
+///
+/// Uses the *default* ubiquity container, so no container identifier is hardcoded:
+/// whatever container you create in Xcode is the one used.
+enum CloudBackup {
+    private static let fm = FileManager.default
+    private static let folderName = "VoiceJournal"
+
+    /// The app's iCloud container `Documents` dir, or nil when iCloud isn't set up.
+    /// - Important: this can block on first access — never call it on the main thread.
+    static func containerDocuments() -> URL? {
+        guard let base = fm.url(forUbiquityContainerIdentifier: nil) else { return nil }
+        return base.appendingPathComponent("Documents", isDirectory: true)
+    }
+
+    static func isAvailable() -> Bool { containerDocuments() != nil }
+
+    private static func backupRoot() -> URL? {
+        containerDocuments()?.appendingPathComponent(folderName, isDirectory: true)
+    }
+
+    /// When the container's manifest was last written — i.e. the last successful backup.
+    static func lastBackupDate() -> Date? {
+        guard let manifest = backupRoot()?.appendingPathComponent("entries.json") else { return nil }
+        return (try? fm.attributesOfItem(atPath: manifest.path)[.modificationDate]) as? Date
+    }
+
+    /// Mirror entries.json + referenced audio into iCloud (incremental copy, prunes deletions).
+    static func backUp(_ entries: [VoiceEntry]) throws {
+        guard let root = backupRoot() else { throw CloudError.unavailable }
+        let audioDir = root.appendingPathComponent("audio", isDirectory: true)
+        try fm.createDirectory(at: audioDir, withIntermediateDirectories: true)
+
+        let data = try JSONEncoder().encode(entries)
+        try coordinatedWrite(data, to: root.appendingPathComponent("entries.json"))
+
+        // Copy any audio not already uploaded; drop audio no longer referenced.
+        let wanted = Set(entries.map { $0.fileName })
+        for e in entries {
+            let src = Store.audioURL(e.fileName)
+            let dst = audioDir.appendingPathComponent(e.fileName)
+            if fm.fileExists(atPath: src.path), !fm.fileExists(atPath: dst.path) {
+                try? fm.copyItem(at: src, to: dst)
+            }
+        }
+        if let existing = try? fm.contentsOfDirectory(atPath: audioDir.path) {
+            for name in existing where !wanted.contains(name) {
+                try? fm.removeItem(at: audioDir.appendingPathComponent(name))
+            }
+        }
+    }
+
+    /// Restore entries + audio from iCloud, merged by id (local edits win, cloud-only entries added).
+    @MainActor
+    static func restore(into store: JournalStore) throws {
+        guard let root = backupRoot() else { throw CloudError.unavailable }
+        let manifest = root.appendingPathComponent("entries.json")
+        try? fm.startDownloadingUbiquitousItem(at: manifest)     // materialize if evicted
+        guard let data = try? Data(contentsOf: manifest),
+              let restored = try? JSONDecoder().decode([VoiceEntry].self, from: data) else {
+            throw CloudError.noBackup
+        }
+        let audioDir = root.appendingPathComponent("audio", isDirectory: true)
+        for e in restored {
+            let src = audioDir.appendingPathComponent(e.fileName)
+            try? fm.startDownloadingUbiquitousItem(at: src)
+            let dst = Store.audioURL(e.fileName)
+            if fm.fileExists(atPath: src.path), !fm.fileExists(atPath: dst.path) {
+                try? fm.copyItem(at: src, to: dst)
+            }
+        }
+        var byID = Dictionary(uniqueKeysWithValues: store.entries.map { ($0.id, $0) })
+        for e in restored where byID[e.id] == nil { byID[e.id] = e }
+        store.replaceAll(Array(byID.values).sorted { $0.date > $1.date })
+    }
+
+    private static func coordinatedWrite(_ data: Data, to url: URL) throws {
+        let coordinator = NSFileCoordinator()
+        var coordErr: NSError?
+        var writeErr: Error?
+        coordinator.coordinate(writingItemAt: url, options: .forReplacing, error: &coordErr) { dst in
+            do { try data.write(to: dst, options: .atomic) } catch { writeErr = error }
+        }
+        if let coordErr { throw coordErr }
+        if let writeErr { throw writeErr }
+    }
+
+    enum CloudError: LocalizedError {
+        case unavailable, noBackup
+        var errorDescription: String? {
+            switch self {
+            case .unavailable: return "iCloud isn't set up for Voice Journal. Turn on iCloud Drive in Settings, then enable iCloud for this app."
+            case .noBackup:    return "No iCloud backup found yet. Back up first, then you can restore."
             }
         }
     }

@@ -8,6 +8,7 @@ struct JournalView: View {
     @ObservedObject var engine: AudioEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
+    var goToCapture: () -> Void = {}
 
     @State private var searching = false
     @AppStorage("vj_calendar") private var calendarMode = false
@@ -156,13 +157,16 @@ struct JournalView: View {
             Image(systemName: "waveform")
                 .font(.system(size: 46, weight: .light))
                 .foregroundColor(Paper.terra.opacity(0.6))
+                .accessibilityHidden(true)
             Text("Your journal is quiet")
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
-            Text("Tap Capture and speak your first entry.\nIt'll appear here, transcribed.")
+            Text("Speak your first entry and it'll\nappear here, transcribed.")
                 .font(Typo.serifItalic(16))
                 .foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center)
                 .lineSpacing(4)
+            PrimaryCapsuleButton(title: "Record your first entry", icon: "mic.fill", action: goToCapture)
+                .padding(.top, 6)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 40)
@@ -264,6 +268,7 @@ struct MiniPlayerBar: View {
                 })
             }
             .frame(height: 3)
+            .accessibilityHidden(true)
 
             HStack(spacing: 14) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -272,19 +277,24 @@ struct MiniPlayerBar: View {
                         .font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("Now playing \(entry.title), \(engine.fmt(engine.playTime)) of \(engine.fmt(engine.playDuration))")
 
                 Button { HX.tap(); engine.skip(seconds: -15) } label: {
                     Image(systemName: "gobackward.15").font(.system(size: 18)).foregroundColor(Paper.ink2)
                 }.buttonStyle(.plain)
+                .accessibilityLabel("Skip back 15 seconds")
 
                 Button { HX.press(); engine.togglePlay(entry: entry) } label: {
                     Image(systemName: engine.state == .playing ? "pause.fill" : "play.fill")
                         .font(.system(size: 22)).foregroundColor(Paper.terra)
                 }.buttonStyle(.plain)
+                .accessibilityLabel(engine.state == .playing ? "Pause" : "Play")
 
                 Button { HX.tap(); engine.stopPlaying() } label: {
                     Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundColor(Paper.ink3)
                 }.buttonStyle(.plain)
+                .accessibilityLabel("Stop playback")
             }
             .padding(.horizontal, 18).padding(.vertical, 12)
         }

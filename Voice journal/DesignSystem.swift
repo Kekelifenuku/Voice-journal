@@ -143,7 +143,7 @@ extension View {
 
 struct CircleIconButton: View {
     let system: String
-    var size: CGFloat = 40
+    var size: CGFloat = 44
     var action: () -> Void
     var body: some View {
         Button(action: action) {

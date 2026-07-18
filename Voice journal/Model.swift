@@ -12,7 +12,7 @@ enum Mood: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
 
     /// Warm, on-palette label.
-    var label: String {
+    nonisolated var label: String {
         switch self {
         case .none:     return "—"
         case .serene:   return "Calm"
@@ -144,7 +144,7 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
         return String(format: "%d:%02d", m, s)
     }
 
-    var durationLong: String {
+    nonisolated var durationLong: String {
         let total = Int(duration)
         let m = total / 60, s = total % 60
         if m == 0 { return "\(s) sec" }
@@ -235,15 +235,57 @@ final class JournalStore: ObservableObject {
         withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) { entries.insert(e, at: 0) }
         save()
     }
+    /// The entry disappears from the feed immediately, but its audio file is kept for a short
+    /// grace period so an accidental delete can be reversed. `pendingDelete` drives the Undo toast.
+    @Published var pendingDelete: VoiceEntry?
+    private var pendingEntries: [UUID: VoiceEntry] = [:]
+    private var deleteWork: [UUID: DispatchWorkItem] = [:]
+    private let undoGrace: TimeInterval = 5
+
     func remove(_ e: VoiceEntry) {
-        try? FileManager.default.removeItem(at: Self.docURL(e.fileName))
         withAnimation(.easeOut(duration: 0.25)) { entries.removeAll { $0.id == e.id } }
-        save()
+        save()                                          // entry leaves the store; audio file lingers
+        pendingEntries[e.id] = e
+        pendingDelete = e
+        let work = DispatchWorkItem { [weak self] in self?.finalizeDelete(e.id) }
+        deleteWork[e.id] = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + undoGrace, execute: work)
     }
+
+    /// Reverse the most recent delete while still inside the grace window.
+    func undoDelete() {
+        guard let e = pendingDelete else { return }
+        deleteWork[e.id]?.cancel(); deleteWork[e.id] = nil
+        pendingEntries[e.id] = nil
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            entries.insert(e, at: 0)
+            entries.sort { $0.date > $1.date }
+        }
+        save(); HX.soft()
+        pendingDelete = nil
+    }
+
+    /// Grace window elapsed — the audio file is now permanently removed.
+    private func finalizeDelete(_ id: UUID) {
+        deleteWork[id] = nil
+        if let e = pendingEntries.removeValue(forKey: id) {
+            try? FileManager.default.removeItem(at: Self.docURL(e.fileName))
+        }
+        if pendingDelete?.id == id { withAnimation(.easeOut(duration: 0.2)) { pendingDelete = nil } }
+    }
+
+    /// Force any lingering soft-deletes to finish (e.g. before a bulk wipe or app teardown).
+    private func flushPendingDeletes() {
+        deleteWork.values.forEach { $0.cancel() }; deleteWork.removeAll()
+        pendingEntries.values.forEach { try? FileManager.default.removeItem(at: Self.docURL($0.fileName)) }
+        pendingEntries.removeAll(); pendingDelete = nil
+    }
+
     func update(_ e: VoiceEntry) {
         if let i = entries.firstIndex(where: { $0.id == e.id }) { entries[i] = e; save() }
     }
     func deleteAll() {
+        flushPendingDeletes()
         entries.forEach { try? FileManager.default.removeItem(at: Self.docURL($0.fileName)) }
         withAnimation { entries.removeAll() }
         save()
@@ -255,6 +297,8 @@ final class JournalStore: ObservableObject {
 
     /// Replace the whole store (used by restore).
     func replaceAll(_ newEntries: [VoiceEntry]) {
+        deleteWork.values.forEach { $0.cancel() }; deleteWork.removeAll()
+        pendingEntries.removeAll(); pendingDelete = nil
         withAnimation(.easeInOut(duration: 0.25)) { entries = newEntries }
         save()
     }

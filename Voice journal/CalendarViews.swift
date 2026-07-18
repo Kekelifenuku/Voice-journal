@@ -35,6 +35,8 @@ struct MoodFilterChips: View {
                 .overlay(Capsule().stroke(active ? tint.opacity(0.5) : Paper.hair, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel("Filter by \(label)")
+        .accessibilityAddTraits(active ? [.isSelected] : [])
     }
 }
 
@@ -112,6 +114,7 @@ struct CalendarMonthView: View {
         let has = store.daysWithEntries.contains(key)
         let isSel = selected.map { cal.isDate(day, inSameDayAs: $0) } ?? false
         let isToday = cal.isDateInToday(day)
+        let count = store.entries.filter { cal.isDate($0.date, inSameDayAs: day) }.count
         // Tint the dot with that day's most recent mood.
         let mood = store.entries.filter { cal.isDate($0.date, inSameDayAs: day) }
             .sorted { $0.date > $1.date }.first?.mood
@@ -135,6 +138,15 @@ struct CalendarMonthView: View {
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(dayLabel(day, count: count, isToday: isToday))
+        .accessibilityAddTraits(isSel ? [.isSelected] : [])
+    }
+
+    /// VoiceOver label for a calendar day, e.g. "Today, July 6, 2 entries".
+    private func dayLabel(_ day: Date, count: Int, isToday: Bool) -> String {
+        let date = day.formatted(.dateTime.month(.wide).day())
+        let entries = count == 0 ? "no entries" : (count == 1 ? "1 entry" : "\(count) entries")
+        return "\(isToday ? "Today, " : "")\(date), \(entries)"
     }
 
     private func navButton(_ system: String, action: @escaping () -> Void) -> some View {

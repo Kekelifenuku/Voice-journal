@@ -9,6 +9,7 @@ struct InsightsView: View {
     @ObservedObject var engine: AudioEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
+    var goToCapture: () -> Void = {}
 
     private var cal: Calendar { Calendar.current }
 
@@ -120,6 +121,8 @@ struct InsightsView: View {
                         Text("\(mc.count)").font(Typo.sans(13, .semibold)).foregroundColor(Paper.ink3)
                             .frame(width: 24, alignment: .trailing)
                     }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("\(mc.mood.label): \(mc.count) \(mc.count == 1 ? "entry" : "entries")")
                 }
             }
         }
@@ -188,11 +191,14 @@ struct InsightsView: View {
         VStack(spacing: 14) {
             Spacer().frame(height: 60)
             Image(systemName: "chart.bar.xaxis").font(.system(size: 44, weight: .light)).foregroundColor(Paper.terra.opacity(0.6))
+                .accessibilityHidden(true)
             Text("Nothing to reflect on yet")
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
             Text("Record a few entries and your\ntrends will appear here.")
                 .font(Typo.serifItalic(16)).foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center).lineSpacing(4)
+            PrimaryCapsuleButton(title: "Record your first entry", icon: "mic.fill", action: goToCapture)
+                .padding(.top, 6)
         }
         .frame(maxWidth: .infinity).padding(.top, 40)
     }
