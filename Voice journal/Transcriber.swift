@@ -204,6 +204,12 @@ final class TranscriptionManager: ObservableObject {
                         e.summary    = digest.summary
                         e.themes     = digest.themes
                         e.words      = out.words
+                        e.sentiment  = Sentiment.score(out.text)
+                        // If the user didn't tag a mood, quietly suggest one from sentiment.
+                        // (Never overrides an explicit choice.)
+                        if e.mood == .none, let s = e.sentiment {
+                            e.mood = Sentiment.suggestedMood(for: s)
+                        }
                         store.update(e)
                     }
                 }

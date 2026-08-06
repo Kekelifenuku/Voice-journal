@@ -9,14 +9,19 @@ struct RootView: View {
     @AppStorage("s_appearance") private var appearance = "system"
     // Shared so the model preloaded during onboarding is still loaded once the app starts.
     @StateObject private var transcription = TranscriptionManager()
+    // Shared entitlement observer; owns RevenueCat config for the app lifetime.
+    @StateObject private var purchases = PurchaseManager()
+    @Environment(\.scenePhase) private var rootScenePhase
 
     private var scheme: ColorScheme? {
         switch appearance { case "light": return .light; case "dark": return .dark; default: return nil }
     }
 
+    @State private var showPaywall = false
+
     var body: some View {
         ZStack {
-            RootTabView(transcription: transcription)
+            RootTabView(transcription: transcription, purchases: purchases)
             if showOnboarding {
                 OnboardingView(transcription: transcription) {
                     UserDefaults.standard.set(true, forKey: "vj_onboarded")
@@ -28,11 +33,23 @@ struct RootView: View {
             }
         }
         .preferredColorScheme(scheme)
+        .environment(\.presentPaywall, PresentPaywall {
+            guard !purchases.isPro else { return }        // never show to Pro users
+            HX.tap(); showPaywall = true
+        })
+        .environment(\.isPro, purchases.isPro)
+        .sheet(isPresented: $showPaywall) {
+            PaywallSheet(purchases: purchases)
+        }
+        .onChange(of: rootScenePhase) { _, phase in
+            if phase == .active { Task { await purchases.refresh() } }
+        }
     }
 }
 
 struct RootTabView: View {
     @ObservedObject var transcription: TranscriptionManager
+    @ObservedObject var purchases: PurchaseManager
     @StateObject private var store         = JournalStore()
     @StateObject private var engine        = AudioEngine()
     @StateObject private var settings      = AppSettings()
@@ -60,7 +77,8 @@ struct RootTabView: View {
 
             NavigationStack {
                 InsightsView(store: store, engine: engine, settings: settings,
-                             transcription: transcription, goToCapture: goToCapture)
+                             transcription: transcription, purchases: purchases,
+                             goToCapture: goToCapture)
             }
             .tag(2)
             .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
@@ -73,7 +91,8 @@ struct RootTabView: View {
             .tabItem { Label("Favorites", systemImage: "heart.fill") }
 
             NavigationStack {
-                SettingsView(settings: settings, store: store, transcription: transcription, cloud: cloud)
+                SettingsView(settings: settings, store: store, transcription: transcription,
+                             cloud: cloud, purchases: purchases)
             }
             .tag(4)
             .tabItem { Label("Settings", systemImage: "gearshape.fill") }

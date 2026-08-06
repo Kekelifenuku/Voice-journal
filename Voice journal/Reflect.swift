@@ -10,6 +10,8 @@ struct ReflectView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isPro) private var isPro
+    @Environment(\.presentPaywall) private var presentPaywall
 
     @State private var showRename = false
     @State private var renameText = ""
@@ -80,6 +82,8 @@ struct ReflectView: View {
 
                 // Note
                 noteSection(entry).padding(.horizontal, 24)
+
+                similarSection(entry).padding(.horizontal, 24)
 
                 Spacer().frame(height: 40)
             }
@@ -313,6 +317,69 @@ struct ReflectView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .lineSpacing(4)
             }
+        }
+    }
+
+    // MARK: Similar entries (Pro)
+
+    @ViewBuilder
+    private func similarSection(_ entry: VoiceEntry) -> some View {
+        let matches = Similarity.similar(to: entry, in: store.entries, limit: 3)
+        // Free users see the pitch even without matches (aspirational); Pro users only see it if there's something to show.
+        if !matches.isEmpty || !isPro {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.triangle.branch").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
+                    Text("Similar entries").eyebrow()
+                    if !isPro {
+                        HStack(spacing: 3) {
+                            Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
+                            Text("PRO").font(Typo.sans(9, .bold)).tracking(0.4)
+                        }
+                        .foregroundColor(Paper.white)
+                        .padding(.horizontal, 6).padding(.vertical, 3)
+                        .background(Paper.terra).clipShape(Capsule())
+                    }
+                    Spacer()
+                }
+
+                if isPro {
+                    ForEach(matches) { m in
+                        NavigationLink(value: m) {
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(m.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                        .font(Typo.sans(12, .semibold)).foregroundColor(Paper.terra)
+                                    Text(m.preview)
+                                        .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
+                                        .lineLimit(2).multilineTextAlignment(.leading)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.muted)
+                            }
+                            .padding(.vertical, 6)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                } else {
+                    Button { presentPaywall() } label: {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("Revisit entries with similar themes to this one.")
+                                .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
+                                .fixedSize(horizontal: false, vertical: true)
+                            HStack(spacing: 6) {
+                                Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold))
+                                Text("Unlock with Pro").font(Typo.sans(13, .semibold))
+                            }
+                            .foregroundColor(Paper.terra)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(18)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .paperCard(20, fill: Paper.cardAlt)
         }
     }
 }

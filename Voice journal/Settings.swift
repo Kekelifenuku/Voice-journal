@@ -128,6 +128,8 @@ struct SettingsView: View {
     @ObservedObject var store: JournalStore
     @ObservedObject var transcription: TranscriptionManager
     @ObservedObject var cloud: CloudBackupManager
+    @ObservedObject var purchases: PurchaseManager
+    @Environment(\.presentPaywall) private var presentPaywall
     @State private var showDeleteConfirm = false
     @State private var shareItems: [Any] = []
     @State private var showShare = false
@@ -160,6 +162,9 @@ struct SettingsView: View {
                     .padding(.vertical, 20)
                     .frame(maxWidth: .infinity)
                     .paperCard(22)
+
+                    // Membership
+                    proCard
 
                     // Transcription
                     settingsGroup("Transcription") {
@@ -260,14 +265,41 @@ struct SettingsView: View {
                         row("Version", icon: "app.badge", trailing: appVersion)
                     }
 
-                    // Backup
+                    // Backup — iCloud is Pro-gated
                     settingsGroup("Backup") {
-                        toggleRow("Back up to iCloud", "icloud", isOn: $settings.iCloudBackup)
-                        cloudStatusRow
+                        HStack {
+                            Label {
+                                Text("Back up to iCloud").font(Typo.sans(15)).foregroundColor(Paper.ink)
+                            } icon: {
+                                Image(systemName: "icloud").foregroundColor(Paper.terra).frame(width: 22)
+                            }
+                            Spacer()
+                            if purchases.isPro {
+                                Toggle("", isOn: $settings.iCloudBackup)
+                                    .labelsHidden().tint(Paper.terra)
+                            } else {
+                                Button { presentPaywall() } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
+                                        Text("Pro").font(Typo.sans(11, .bold))
+                                    }
+                                    .foregroundColor(Paper.white)
+                                    .padding(.horizontal, 10).padding(.vertical, 5)
+                                    .background(Paper.terra).clipShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 13)
+                        if purchases.isPro { cloudStatusRow }
                         divider
-                        linkRow("Back up now", "arrow.up.to.line.compact") { cloud.backUpNow() }
+                        linkRow("Back up now", "arrow.up.to.line.compact") {
+                            purchases.isPro ? cloud.backUpNow() : presentPaywall()
+                        }
                         divider
-                        linkRow("Restore from iCloud", "arrow.down.to.line.compact") { showRestoreConfirm = true }
+                        linkRow("Restore from iCloud", "arrow.down.to.line.compact") {
+                            purchases.isPro ? (showRestoreConfirm = true) : presentPaywall()
+                        }
                         divider
                         linkRow("Export as Markdown", "doc.text") { exportMarkdown() }
                     }
@@ -326,6 +358,50 @@ struct SettingsView: View {
                 alertMessage = "Notifications are off for Voice Journal. Turn them on in iOS Settings › Notifications to get your daily reminder."
                 settings.reminderAuthDenied = false
             }
+        }
+    }
+
+    // MARK: Pro card
+
+    @ViewBuilder
+    private var proCard: some View {
+        if purchases.isPro {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle().fill(Paper.terra.opacity(0.14)).frame(width: 44, height: 44)
+                    Image(systemName: "sparkles").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.terra)
+                }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Voice Journal Pro").font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
+                    Text(purchases.activePlan.map { "\($0) plan · thank you" } ?? "Active · thank you")
+                        .font(Typo.sans(12)).foregroundColor(Paper.ink3)
+                }
+                Spacer()
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 20)).foregroundColor(Paper.terra)
+            }
+            .padding(16)
+            .frame(maxWidth: .infinity)
+            .paperCard(20, fill: Paper.cardAlt)
+        } else {
+            Button { presentPaywall() } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle().fill(Paper.terra).frame(width: 44, height: 44)
+                        Image(systemName: "sparkles").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.white)
+                    }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text("Unlock Voice Journal Pro").font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
+                        Text("AI summaries, insights, iCloud backup").font(Typo.sans(12)).foregroundColor(Paper.ink3)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(Paper.terra)
+                }
+                .padding(16)
+                .frame(maxWidth: .infinity)
+                .paperCard(20, fill: Paper.cardAlt)
+            }
+            .buttonStyle(.plain)
         }
     }
 

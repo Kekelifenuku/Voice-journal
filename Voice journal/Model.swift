@@ -80,6 +80,8 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
     var prompt:     String = ""
     var waveform:   [Double] = []   // normalized amplitude envelope (0…1) of the recording
     var words:      [WordStamp] = []// per-word timings for tap-to-seek
+    /// On-device sentiment analysis (Apple NL). Range roughly -1…+1. `nil` = not computed.
+    var sentiment:  Double? = nil
 
     init(duration: TimeInterval, fileName: String, title: String = "",
          mood: Mood = .none, note: String = "", prompt: String = "") {
@@ -108,10 +110,11 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
         prompt     = try c.decodeIfPresent(String.self,       forKey: .prompt) ?? ""
         waveform   = try c.decodeIfPresent([Double].self,     forKey: .waveform) ?? []
         words      = try c.decodeIfPresent([WordStamp].self,  forKey: .words) ?? []
+        sentiment  = try c.decodeIfPresent(Double.self,       forKey: .sentiment)
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, date, duration, fileName, title, mood, isFavorite, note, transcript, summary, themes, prompt, waveform, words
+        case id, date, duration, fileName, title, mood, isFavorite, note, transcript, summary, themes, prompt, waveform, words, sentiment
     }
 
     // MARK: Derived
@@ -177,7 +180,32 @@ final class JournalStore: ObservableObject {
     @Published var favOnly     = false
     @Published var moodFilter: Mood? = nil
 
-    init() { entries = Store.load() }
+    init() {
+        entries = Store.load()
+        backfillSentiments()
+    }
+
+    /// Score sentiment on any entry that has a transcript but no cached score yet
+    /// (migrations from before sentiment existed, or restored backups).
+    private func backfillSentiments() {
+        let needs = entries.enumerated().compactMap { i, e -> (Int, String)? in
+            (e.sentiment == nil && !e.transcript.isEmpty) ? (i, e.transcript) : nil
+        }
+        guard !needs.isEmpty else { return }
+        Task.detached(priority: .utility) {
+            let scored: [(Int, Double?)] = needs.map { ($0.0, Sentiment.score($0.1)) }
+            await MainActor.run {
+                var changed = false
+                for (i, s) in scored where i < self.entries.count {
+                    if self.entries[i].sentiment == nil {
+                        self.entries[i].sentiment = s
+                        changed = true
+                    }
+                }
+                if changed { Store.save(self.entries) }
+            }
+        }
+    }
 
     // Filtering / grouping
     func filtered() -> [VoiceEntry] {

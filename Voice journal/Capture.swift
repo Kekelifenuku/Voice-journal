@@ -30,7 +30,7 @@ struct CaptureView: View {
                 if settings.showPromptOnCapture {
                     VStack(alignment: .leading, spacing: 12) {
                         Text("Today's prompt").eyebrow()
-                        Text(Prompts.today())
+                        Text(PersonalPrompts.today(entries: store.entries))
                             .font(Typo.serifItalic(26))
                             .foregroundColor(Paper.ink)
                             .lineSpacing(6)
@@ -244,7 +244,8 @@ struct CaptureView: View {
     private func handleFinish(file: String, dur: TimeInterval) {
         transcription.stopLive()
         guard dur >= 0.6 else { return }          // ignore accidental taps
-        let entry = VoiceEntry(duration: dur, fileName: file, prompt: settings.showPromptOnCapture ? Prompts.today() : "")
+        let prompt = settings.showPromptOnCapture ? PersonalPrompts.today(entries: store.entries) : ""
+        let entry = VoiceEntry(duration: dur, fileName: file, prompt: prompt)
         store.add(entry)
         store.ensureWaveform(for: entry)
         if settings.autoTranscribe { transcription.transcribe(entry, store: store) }

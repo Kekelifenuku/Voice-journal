@@ -9,6 +9,8 @@ struct InsightsView: View {
     @ObservedObject var engine: AudioEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
+    @ObservedObject var purchases: PurchaseManager
+    @Environment(\.presentPaywall) private var presentPaywall
     var goToCapture: () -> Void = {}
 
     private var cal: Calendar { Calendar.current }
@@ -28,6 +30,7 @@ struct InsightsView: View {
                         if !moodCounts.isEmpty { moodCard }
                         if !topThemes.isEmpty { themesCard }
                         if !onThisDay.isEmpty { onThisDayCard }
+                        advancedSection
                     }
 
                     Spacer().frame(height: 30)
@@ -184,6 +187,182 @@ struct InsightsView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .paperCard(20, fill: Paper.cardAlt)
     }
+
+    // MARK: Advanced (Pro)
+
+    @ViewBuilder
+    private var advancedSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                Text("Advanced").eyebrow()
+                if !purchases.isPro {
+                    HStack(spacing: 3) {
+                        Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
+                        Text("PRO").font(Typo.sans(9, .bold)).tracking(0.4)
+                    }
+                    .foregroundColor(Paper.white)
+                    .padding(.horizontal, 6).padding(.vertical, 3)
+                    .background(Paper.terra).clipShape(Capsule())
+                }
+                Spacer()
+            }
+            .padding(.top, 4)
+
+            if purchases.isPro {
+                if !sentimentSeries.contains(where: { $0.sentiment != nil }) {
+                    proHint("Sentiment appears once your entries are transcribed.")
+                } else {
+                    sentimentCard
+                }
+                bestTimeCard
+                if avgWordCount > 0 { paceCard }
+                if !trendingThemes.isEmpty { trendingCard }
+            } else {
+                proUpsell
+            }
+        }
+    }
+
+    private var sentimentCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text("Emotional trend").eyebrow(Paper.ink3)
+                Spacer()
+                if let delta = Trends.sentimentDelta(store.entries) {
+                    HStack(spacing: 4) {
+                        Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        Text(delta >= 0 ? "Brightening" : "Softening")
+                    }
+                    .font(Typo.sans(11, .semibold))
+                    .foregroundColor(Paper.terra)
+                }
+            }
+            Chart(sentimentSeries) { p in
+                if let s = p.sentiment {
+                    LineMark(x: .value("Day", p.date, unit: .day),
+                             y: .value("Sentiment", s))
+                    .foregroundStyle(Paper.terra)
+                    .interpolationMethod(.catmullRom)
+                    AreaMark(x: .value("Day", p.date, unit: .day),
+                             y: .value("Sentiment", s))
+                    .foregroundStyle(LinearGradient(colors: [Paper.terra.opacity(0.35), Paper.terra.opacity(0.02)],
+                                                    startPoint: .top, endPoint: .bottom))
+                    .interpolationMethod(.catmullRom)
+                }
+            }
+            .chartYScale(domain: -1...1)
+            .chartYAxis { AxisMarks(values: [-1, 0, 1]) { _ in AxisValueLabel().foregroundStyle(Paper.ink3) } }
+            .chartXAxis {
+                AxisMarks(values: .stride(by: .day, count: 7)) { _ in
+                    AxisValueLabel(format: .dateTime.month(.abbreviated).day(), centered: true)
+                        .foregroundStyle(Paper.ink3)
+                }
+            }
+            .frame(height: 140)
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .paperCard(22)
+    }
+
+    private var bestTimeCard: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(Paper.terra.opacity(0.14)).frame(width: 44, height: 44)
+                Image(systemName: "sunrise").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.terra)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text("You journal most").font(Typo.sans(12, .medium)).foregroundColor(Paper.ink3)
+                Text(Trends.bestWindow(store.entries) ?? "Not enough entries yet")
+                    .font(Typo.sans(16, .semibold)).foregroundColor(Paper.ink)
+            }
+            Spacer()
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .paperCard(22)
+    }
+
+    private var paceCard: some View {
+        HStack(spacing: 24) {
+            paceStat("Avg length", "\(avgWordCount) words")
+            Rectangle().fill(Paper.hair).frame(width: 1, height: 32)
+            paceStat("Speaking pace", "\(avgWPM) wpm")
+        }
+        .padding(.vertical, 20).padding(.horizontal, 18)
+        .frame(maxWidth: .infinity)
+        .paperCard(22)
+    }
+    private func paceStat(_ label: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+            Text(value).font(Typo.sans(17, .bold)).foregroundColor(Paper.ink)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private var trendingCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("Trending this month").eyebrow(Paper.ink3)
+            VStack(spacing: 10) {
+                ForEach(trendingThemes.prefix(4), id: \.theme) { t in
+                    HStack {
+                        Text(t.theme.capitalized).font(Typo.sans(14, .medium)).foregroundColor(Paper.ink)
+                        Spacer()
+                        HStack(spacing: 4) {
+                            Image(systemName: t.delta >= 0 ? "arrow.up" : "arrow.down")
+                                .font(.system(size: 10, weight: .bold))
+                            Text("\(abs(t.delta))")
+                                .font(Typo.sans(12, .semibold))
+                        }
+                        .foregroundColor(t.delta >= 0 ? Paper.terra : Paper.ink3)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background((t.delta >= 0 ? Paper.terra : Paper.ink3).opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                }
+            }
+        }
+        .padding(18)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .paperCard(22)
+    }
+
+    private func proHint(_ text: String) -> some View {
+        Text(text).font(Typo.serifItalic(14)).foregroundColor(Paper.ink3)
+            .padding(18).frame(maxWidth: .infinity, alignment: .leading)
+            .paperCard(20, fill: Paper.cardAlt)
+    }
+
+    private var proUpsell: some View {
+        Button { presentPaywall() } label: {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 8) {
+                    Image(systemName: "sparkles").font(.system(size: 14, weight: .semibold)).foregroundColor(Paper.terra)
+                    Text("See deeper patterns")
+                        .font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
+                }
+                Text("Emotional trend, best time to journal, speaking pace, trending themes — all computed on your device.")
+                    .font(Typo.serifItalic(14)).foregroundColor(Paper.ink2).lineSpacing(3)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold))
+                    Text("Unlock with Pro").font(Typo.sans(13, .semibold))
+                }
+                .foregroundColor(Paper.terra)
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .paperCard(20, fill: Paper.cardAlt)
+        }
+        .buttonStyle(.plain)
+    }
+
+    // Cached inputs
+    private var sentimentSeries: [Trends.SentimentPoint] { Trends.sentimentSeries(store.entries) }
+    private var avgWordCount: Int { Trends.avgWordsPerEntry(store.entries) }
+    private var avgWPM: Int { Trends.avgWordsPerMinute(store.entries) }
+    private var trendingThemes: [Trends.ThemeTrend] { Trends.themeTrends(store.entries) }
 
     // MARK: Empty
 
