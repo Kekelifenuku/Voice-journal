@@ -7,6 +7,7 @@ struct RootView: View {
     @State private var showOnboarding =
         !UserDefaults.standard.bool(forKey: "vj_onboarded")
     @AppStorage("s_appearance") private var appearance = "system"
+    @AppStorage("s_applang") private var appLang = "system"
     // Shared so the model preloaded during onboarding is still loaded once the app starts.
     @StateObject private var transcription = TranscriptionManager()
     // Shared entitlement observer; owns RevenueCat config for the app lifetime.
@@ -32,6 +33,7 @@ struct RootView: View {
                 .zIndex(10)
             }
         }
+        .environment(\.locale, AppLocale.locale)
         .preferredColorScheme(scheme)
         .environment(\.presentPaywall, PresentPaywall {
             guard !purchases.isPro else { return }        // never show to Pro users
@@ -55,6 +57,10 @@ struct RootTabView: View {
     @StateObject private var settings      = AppSettings()
     @StateObject private var cloud         = CloudBackupManager()
     @State private var tab = 0
+    // Rebuilds the tab subtree when the app language changes so every localized
+    // Text re-resolves against the newly selected .lproj. The StateObjects above
+    // live on this (unchanged) view, so they and the selected tab survive the rebuild.
+    @AppStorage("s_applang") private var appLang = "system"
     @Environment(\.scenePhase) private var scenePhase
 
     private func goToCapture() {
@@ -66,14 +72,14 @@ struct RootTabView: View {
             CaptureView(engine: engine, store: store, settings: settings,
                         transcription: transcription)
                 .tag(0)
-                .tabItem { Label("Capture", systemImage: "mic.fill") }
+                .tabItem { Label(L("Capture"), systemImage: "mic.fill") }
 
             NavigationStack {
                 JournalView(store: store, engine: engine, settings: settings,
                             transcription: transcription, goToCapture: goToCapture)
             }
             .tag(1)
-            .tabItem { Label("Journal", systemImage: "book.fill") }
+            .tabItem { Label(L("Journal"), systemImage: "book.fill") }
 
             NavigationStack {
                 InsightsView(store: store, engine: engine, settings: settings,
@@ -81,22 +87,23 @@ struct RootTabView: View {
                              goToCapture: goToCapture)
             }
             .tag(2)
-            .tabItem { Label("Insights", systemImage: "chart.bar.fill") }
+            .tabItem { Label(L("Insights"), systemImage: "chart.bar.fill") }
 
             NavigationStack {
                 FavoritesView(store: store, engine: engine, settings: settings,
                               transcription: transcription, goToCapture: goToCapture)
             }
             .tag(3)
-            .tabItem { Label("Favorites", systemImage: "heart.fill") }
+            .tabItem { Label(L("Favorites"), systemImage: "heart.fill") }
 
             NavigationStack {
                 SettingsView(settings: settings, store: store, transcription: transcription,
                              cloud: cloud, purchases: purchases)
             }
             .tag(4)
-            .tabItem { Label("Settings", systemImage: "gearshape.fill") }
+            .tabItem { Label(L("Settings"), systemImage: "gearshape.fill") }
         }
+        .id(appLang)
         .tint(Paper.terra)
         .task { cloud.attach(store: store, settings: settings) }
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)   // scale text, but cap the extremes

@@ -23,6 +23,7 @@ final class AppSettings: ObservableObject {
     @Published var language           = "en"   { didSet { save() } }  // en | es | fr | de | auto
     @Published var liveTranscription  = false  { didSet { save() } }  // beta: stream words while recording
     @Published var appearance         = "system" { didSet { save() } } // system | light | dark
+    @Published var appLanguage        = "system" { didSet { saveAppLanguage() } } // system | en | es | fr | ...
     @Published var iCloudBackup       = false  { didSet { save() } }  // auto-mirror to iCloud Drive
     /// Flips true when the user enables reminders but notifications are denied — the view
     /// observes it to surface guidance, then resets it.
@@ -30,6 +31,39 @@ final class AppSettings: ObservableObject {
 
     /// English-only models are faster & more accurate for English; other languages need multilingual.
     var effectiveModelName: String { language == "en" ? "\(modelQuality).en" : modelQuality }
+
+    /// The app-language options offered in Settings.
+    /// `native` is the endonym (shown as the primary label); `english` is the
+    /// English name shown underneath as a secondary hint.
+    static let appLanguageOptions: [(code: String, native: String, english: String)] = [
+        ("system",  "System",       "Match device"),
+        ("en",      "English",      "English"),
+        ("es",      "Español",      "Spanish"),
+        ("fr",      "Français",     "French"),
+        ("de",      "Deutsch",      "German"),
+        ("pt-BR",   "Português",    "Portuguese (Brazil)"),
+        ("it",      "Italiano",     "Italian"),
+        ("nl",      "Nederlands",   "Dutch"),
+        ("ja",      "日本語",         "Japanese"),
+        ("ko",      "한국어",         "Korean"),
+        ("zh-Hans", "中文",          "Chinese (Simplified)")
+    ]
+
+    /// The endonym for the currently selected app language (for the Settings row).
+    static func appLanguageNative(_ code: String) -> String {
+        appLanguageOptions.first { $0.code == code }?.native ?? code
+    }
+
+    private func saveAppLanguage() {
+        guard !isLoading else { return }
+        let d = UserDefaults.standard
+        d.set(appLanguage, forKey: "s_applang")
+        if appLanguage == "system" {
+            d.removeObject(forKey: "AppleLanguages")
+        } else {
+            d.set([appLanguage], forKey: "AppleLanguages")
+        }
+    }
 
     /// True while `load()` is populating properties, so the `didSet` observers don't
     /// call `save()` and persist half-loaded (default) values over the real ones.
@@ -70,6 +104,7 @@ final class AppSettings: ObservableObject {
         modelQuality       = d.string(forKey: "s_modelq") ?? "base"
         language           = d.string(forKey: "s_lang") ?? "en"
         appearance         = d.string(forKey: "s_appearance") ?? "system"
+        appLanguage        = d.string(forKey: "s_applang") ?? "system"
         liveTranscription  = d.object(forKey: "s_live") as? Bool ?? false
         iCloudBackup       = d.object(forKey: "s_icloud") as? Bool ?? false
         HX.setEnabled(hapticsEnabled)
@@ -94,8 +129,8 @@ final class AppSettings: ObservableObject {
 
     private func addReminderRequest() {
         let c = UNMutableNotificationContent()
-        c.title = "A moment to reflect"
-        c.body  = "Open your journal and speak today's thoughts."
+        c.title = String(localized: "A moment to reflect", bundle: AppLocale.bundle)
+        c.body  = String(localized: "Open your journal and speak today's thoughts.", bundle: AppLocale.bundle)
         c.sound = .default
         var dc = DateComponents(); dc.hour = reminderHour; dc.minute = reminderMinute
         let req = UNNotificationRequest(identifier: "vj_daily", content: c,
@@ -119,6 +154,51 @@ final class AppSettings: ObservableObject {
             if remindersOn { scheduleReminder() }
         }
     }
+}
+
+// MARK: - Runtime locale override
+
+/// SwiftUI's `Text(L("literal"))` resolves against the bundle's *launch-time* language
+/// and can't be redirected at runtime by the environment locale or a bundle swizzle.
+/// So every user-facing string is resolved explicitly against the selected language's
+/// `.lproj` via `L(_:)`, and `RootTabView` carries `.id(appLang)` so the tree rebuilds
+/// (re-running `L`) the instant the language changes — no relaunch.
+enum AppLocale {
+    static var code: String { UserDefaults.standard.string(forKey: "s_applang") ?? "system" }
+
+    static var locale: Locale {
+        code == "system" ? .autoupdatingCurrent : Locale(identifier: code)
+    }
+
+    /// Whether the app is effectively showing English — used to decide whether the
+    /// motivation card fetches English ZenQuotes or falls back to the localized pack.
+    static var isEnglish: Bool {
+        switch code {
+        case "en":     return true
+        case "system": return (Locale.preferredLanguages.first ?? "en").hasPrefix("en")
+        default:       return false
+        }
+    }
+
+    // Cache the resolved `.lproj` bundle so we don't re-create it on every `L(_:)` call.
+    private static var cached: (code: String, bundle: Bundle)?
+
+    /// The `.lproj` bundle for the selected language (or `.main` for "system").
+    static var bundle: Bundle {
+        let c = code
+        if c == "system" { return .main }
+        if let cached, cached.code == c { return cached.bundle }
+        guard let path = Bundle.main.path(forResource: c, ofType: "lproj"),
+              let b = Bundle(path: path) else { return .main }
+        cached = (c, b)
+        return b
+    }
+}
+
+/// Resolve a UI string against the currently selected app language. Works for both
+/// literal keys and runtime values; falls back to the key itself if untranslated.
+func L(_ key: String) -> String {
+    AppLocale.bundle.localizedString(forKey: key, value: key, table: nil)
 }
 
 // MARK: - Settings screen
@@ -201,14 +281,14 @@ struct SettingsView: View {
                     settingsGroup("Playback") {
                         HStack {
                             Label {
-                                Text("Default speed").font(Typo.sans(15)).foregroundColor(Paper.ink)
+                                Text(L("Default speed")).font(Typo.sans(15)).foregroundColor(Paper.ink)
                             } icon: {
                                 Image(systemName: "gauge.with.dots.needle.50percent").foregroundColor(Paper.terra)
                             }
                             Spacer()
                             Picker("", selection: $settings.playbackSpeed) {
-                                Text("0.5×").tag(0.5); Text("1×").tag(1.0)
-                                Text("1.5×").tag(1.5); Text("2×").tag(2.0)
+                                Text(L("0.5×")).tag(0.5); Text(L("1×")).tag(1.0)
+                                Text(L("1.5×")).tag(1.5); Text(L("2×")).tag(2.0)
                             }
                             .pickerStyle(.menu).tint(Paper.terra)
                         }
@@ -222,7 +302,7 @@ struct SettingsView: View {
                             divider
                             HStack {
                                 Label {
-                                    Text("Time").font(Typo.sans(15)).foregroundColor(Paper.ink)
+                                    Text(L("Time")).font(Typo.sans(15)).foregroundColor(Paper.ink)
                                 } icon: {
                                     Image(systemName: "clock").foregroundColor(Paper.terra)
                                 }
@@ -242,6 +322,34 @@ struct SettingsView: View {
                         pickerRow("Theme", icon: "circle.lefthalf.filled", selection: $settings.appearance,
                                   options: [("system", "System"), ("light", "Light"), ("dark", "Dark")]) { }
                     }
+
+                    // Language
+                    settingsGroup("Language") {
+                        NavigationLink {
+                            LanguageSelectorView(settings: settings)
+                        } label: {
+                            HStack {
+                                Label {
+                                    Text(L("App language")).font(Typo.sans(15)).foregroundColor(Paper.ink)
+                                } icon: {
+                                    Image(systemName: "globe.americas").foregroundColor(Paper.terra).frame(width: 22)
+                                }
+                                Spacer()
+                                Text(AppSettings.appLanguageNative(settings.appLanguage))
+                                    .font(Typo.sans(14, .medium)).foregroundColor(Paper.terra)
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.ink3)
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 12)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Text(L("Choose the language the app uses."))
+                        .font(Typo.sans(12))
+                        .foregroundColor(Paper.ink3)
+                        .padding(.horizontal, 8)
+                        .fixedSize(horizontal: false, vertical: true)
 
                     // Feel
                     settingsGroup("Feel") {
@@ -269,7 +377,7 @@ struct SettingsView: View {
                     settingsGroup("Backup") {
                         HStack {
                             Label {
-                                Text("Back up to iCloud").font(Typo.sans(15)).foregroundColor(Paper.ink)
+                                Text(L("Back up to iCloud")).font(Typo.sans(15)).foregroundColor(Paper.ink)
                             } icon: {
                                 Image(systemName: "icloud").foregroundColor(Paper.terra).frame(width: 22)
                             }
@@ -281,7 +389,7 @@ struct SettingsView: View {
                                 Button { presentPaywall() } label: {
                                     HStack(spacing: 4) {
                                         Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
-                                        Text("Pro").font(Typo.sans(11, .bold))
+                                        Text(L("Pro")).font(Typo.sans(11, .bold))
                                     }
                                     .foregroundColor(Paper.white)
                                     .padding(.horizontal, 10).padding(.vertical, 5)
@@ -304,7 +412,7 @@ struct SettingsView: View {
                         linkRow("Export as Markdown", "doc.text") { exportMarkdown() }
                     }
 
-                    Text("Your entries and audio mirror to your private iCloud Drive, so they survive a lost phone and come back when you sign in on a new one. Nothing is shared with anyone.")
+                    Text(L("Your entries and audio mirror to your private iCloud Drive, so they survive a lost phone and come back when you sign in on a new one. Nothing is shared with anyone."))
                         .font(Typo.sans(12))
                         .foregroundColor(Paper.ink3)
                         .padding(.horizontal, 8)
@@ -316,7 +424,7 @@ struct SettingsView: View {
                     } label: {
                         HStack {
                             Image(systemName: "trash")
-                            Text("Delete all entries").font(Typo.sans(15, .medium))
+                            Text(L("Delete all entries")).font(Typo.sans(15, .medium))
                             Spacer()
                         }
                         .foregroundColor(Color(0xB03A2E))
@@ -332,7 +440,7 @@ struct SettingsView: View {
                 .padding(.top, 8)
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(L("Settings"))
         .navigationBarTitleDisplayMode(.large)
         .onAppear { cloud.refresh() }
         .onChange(of: settings.iCloudBackup) { _, on in
@@ -341,24 +449,26 @@ struct SettingsView: View {
         .sheet(isPresented: $showShare) {
             if !shareItems.isEmpty { ShareSheet(items: shareItems) }
         }
-        .confirmationDialog("Restore from iCloud?", isPresented: $showRestoreConfirm, titleVisibility: .visible) {
-            Button("Restore") { cloud.restore() }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("Adds any entries and audio found in your iCloud backup. Your current entries are kept.") }
+        .confirmationDialog(L("Restore from iCloud?"), isPresented: $showRestoreConfirm, titleVisibility: .visible) {
+            Button(L("Restore")) { cloud.restore() }
+            Button(L("Cancel"), role: .cancel) {}
+        } message: { Text(L("Adds any entries and audio found in your iCloud backup. Your current entries are kept.")) }
         .alert("Voice Journal", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
-            Button("OK", role: .cancel) { alertMessage = nil }
+            Button(L("OK"), role: .cancel) { alertMessage = nil }
         } message: { Text(alertMessage ?? "") }
-        .confirmationDialog("Delete all entries?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
-            Button("Delete All", role: .destructive) { store.deleteAll(); HX.ok() }
-            Button("Cancel", role: .cancel) {}
-        } message: { Text("This permanently removes every recording. It cannot be undone.") }
+        .confirmationDialog(L("Delete all entries?"), isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button(L("Delete All"), role: .destructive) { store.deleteAll(); HX.ok() }
+            Button(L("Cancel"), role: .cancel) {}
+        } message: { Text(L("This permanently removes every recording. It cannot be undone.")) }
         .onChange(of: settings.reminderAuthDenied) { _, denied in
             if denied {
                 HX.warn()
-                alertMessage = "Notifications are off for Voice Journal. Turn them on in iOS Settings › Notifications to get your daily reminder."
+                alertMessage = L("Notifications are off for Voice Journal. Turn them on in iOS Settings › Notifications to get your daily reminder.")
                 settings.reminderAuthDenied = false
             }
         }
+
+
     }
 
     // MARK: Pro card
@@ -372,7 +482,7 @@ struct SettingsView: View {
                     Image(systemName: "sparkles").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.terra)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Voice Journal Pro").font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
+                    Text(L("Voice Journal Pro")).font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
                     Text(purchases.activePlan.map { "\($0) plan · thank you" } ?? "Active · thank you")
                         .font(Typo.sans(12)).foregroundColor(Paper.ink3)
                 }
@@ -391,8 +501,8 @@ struct SettingsView: View {
                         Image(systemName: "sparkles").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.white)
                     }
                     VStack(alignment: .leading, spacing: 3) {
-                        Text("Unlock Voice Journal Pro").font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
-                        Text("AI summaries, insights, iCloud backup").font(Typo.sans(12)).foregroundColor(Paper.ink3)
+                        Text(L("Unlock Voice Journal Pro")).font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
+                        Text(L("AI summaries, insights, iCloud backup")).font(Typo.sans(12)).foregroundColor(Paper.ink3)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(Paper.terra)
@@ -417,12 +527,12 @@ struct SettingsView: View {
 
     private var modelStatusText: String {
         switch transcription.state {
-        case .idle:         return "Ready to load"
-        case .preparing:    return "Loading…"
-        case .ready:        return "Whisper · loaded"
-        case .transcribing: return "Working…"
-        case .unavailable:  return "Not installed"
-        case .failed:       return "Unavailable"
+        case .idle:         return String(localized: "Ready to load", bundle: AppLocale.bundle)
+        case .preparing:    return String(localized: "Loading…", bundle: AppLocale.bundle)
+        case .ready:        return String(localized: "Whisper · loaded", bundle: AppLocale.bundle)
+        case .transcribing: return String(localized: "Working…", bundle: AppLocale.bundle)
+        case .unavailable:  return String(localized: "Not installed", bundle: AppLocale.bundle)
+        case .failed:       return String(localized: "Unavailable", bundle: AppLocale.bundle)
         }
     }
 
@@ -451,7 +561,7 @@ struct SettingsView: View {
     private func stat(_ v: String, _ l: String) -> some View {
         VStack(spacing: 5) {
             Text(v).font(Typo.sans(22, .bold)).foregroundColor(Paper.ink)
-            Text(l).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+            Text(L(l)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
         }
         .frame(maxWidth: .infinity)
     }
@@ -460,7 +570,7 @@ struct SettingsView: View {
 
     private func settingsGroup<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).eyebrow(Paper.ink3).padding(.leading, 6)
+            Text(L(title)).eyebrow(Paper.ink3).padding(.leading, 6)
             VStack(spacing: 0) { content() }.paperCard(18)
         }
     }
@@ -468,7 +578,7 @@ struct SettingsView: View {
     private func toggleRow(_ title: String, _ icon: String, isOn: Binding<Bool>) -> some View {
         Toggle(isOn: isOn) {
             Label {
-                Text(title).font(Typo.sans(15)).foregroundColor(Paper.ink)
+                Text(L(title)).font(Typo.sans(15)).foregroundColor(Paper.ink)
             } icon: {
                 Image(systemName: icon).foregroundColor(Paper.terra).frame(width: 22)
             }
@@ -482,7 +592,7 @@ struct SettingsView: View {
                            options: [(String, String)], onChange: @escaping () -> Void) -> some View {
         HStack {
             Label {
-                Text(title).font(Typo.sans(15)).foregroundColor(Paper.ink)
+                Text(L(title)).font(Typo.sans(15)).foregroundColor(Paper.ink)
             } icon: {
                 Image(systemName: icon).foregroundColor(Paper.terra).frame(width: 22)
             }
@@ -492,13 +602,13 @@ struct SettingsView: View {
                     Button {
                         selection.wrappedValue = opt.0; HX.tick(); onChange()
                     } label: {
-                        if selection.wrappedValue == opt.0 { Label(opt.1, systemImage: "checkmark") }
-                        else { Text(opt.1) }
+                        if selection.wrappedValue == opt.0 { Label(L(opt.1), systemImage: "checkmark") }
+                        else { Text(L(opt.1)) }
                     }
                 }
             } label: {
                 HStack(spacing: 4) {
-                    Text(options.first { $0.0 == selection.wrappedValue }?.1 ?? selection.wrappedValue)
+                    Text(L(options.first { $0.0 == selection.wrappedValue }?.1 ?? selection.wrappedValue))
                         .font(Typo.sans(14, .medium)).foregroundColor(Paper.terra)
                     Image(systemName: "chevron.up.chevron.down").font(.system(size: 10, weight: .semibold))
                         .foregroundColor(Paper.terra)
@@ -511,7 +621,7 @@ struct SettingsView: View {
     private func row(_ title: String, icon: String, trailing: String) -> some View {
         HStack {
             Label {
-                Text(title).font(Typo.sans(15)).foregroundColor(Paper.ink)
+                Text(L(title)).font(Typo.sans(15)).foregroundColor(Paper.ink)
             } icon: {
                 Image(systemName: icon).foregroundColor(Paper.terra).frame(width: 22)
             }
@@ -525,7 +635,7 @@ struct SettingsView: View {
         Button(action: { HX.tap(); action() }) {
             HStack {
                 Label {
-                    Text(title).font(Typo.sans(15)).foregroundColor(Paper.ink)
+                    Text(L(title)).font(Typo.sans(15)).foregroundColor(Paper.ink)
                 } icon: {
                     Image(systemName: icon).foregroundColor(Paper.terra).frame(width: 22)
                 }
@@ -562,4 +672,91 @@ struct ShareSheet: UIViewControllerRepresentable {
         UIActivityViewController(activityItems: items, applicationActivities: nil)
     }
     func updateUIViewController(_ vc: UIActivityViewController, context: Context) {}
+}
+
+// MARK: - Language selector (pushed list, applies instantly)
+
+/// A full-screen list of app languages. Tapping a row sets `settings.appLanguage`,
+/// which switches the whole UI instantly via the `.environment(\.locale, …)` on the
+/// root view — no relaunch. The selected row shows a terracotta checkmark.
+struct LanguageSelectorView: View {
+    @ObservedObject var settings: AppSettings
+    @Environment(\.dismiss) private var dismiss
+
+    private var options: [(code: String, native: String, english: String)] {
+        AppSettings.appLanguageOptions
+    }
+
+    var body: some View {
+        ZStack {
+            Paper.bg.ignoresSafeArea()
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 18) {
+                    // "System" sits on its own, like the device Settings pattern.
+                    VStack(spacing: 0) {
+                        if let sys = options.first(where: { $0.code == "system" }) {
+                            row(sys)
+                        }
+                    }
+                    .paperCard(18)
+
+                    VStack(spacing: 0) {
+                        let langs = options.filter { $0.code != "system" }
+                        ForEach(Array(langs.enumerated()), id: \.element.code) { i, opt in
+                            row(opt)
+                            if i < langs.count - 1 {
+                                Rectangle().fill(Paper.hair).frame(height: 1).padding(.leading, 16)
+                            }
+                        }
+                    }
+                    .paperCard(18)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 40)
+            }
+        }
+        .navigationTitle(L("App language"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    /// Secondary label: the language's name in the *current* UI language (iOS-native
+    /// pattern — endonym on top, your-language name beneath). "System" uses its own hint.
+    private func secondary(_ opt: (code: String, native: String, english: String)) -> String {
+        if opt.code == "system" { return L(opt.english) }
+        let uiLoc = AppLocale.code == "system" ? Locale.autoupdatingCurrent : Locale(identifier: AppLocale.code)
+        return uiLoc.localizedString(forIdentifier: opt.code) ?? opt.english
+    }
+
+    private func row(_ opt: (code: String, native: String, english: String)) -> some View {
+        let selected = settings.appLanguage == opt.code
+        return Button {
+            guard settings.appLanguage != opt.code else { dismiss(); return }
+            settings.appLanguage = opt.code
+            HX.tick()
+            dismiss()
+        } label: {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L(opt.native))
+                        .font(Typo.sans(16, selected ? .semibold : .regular))
+                        .foregroundColor(Paper.ink)
+                    Text(secondary(opt))
+                        .font(Typo.sans(12))
+                        .foregroundColor(Paper.ink3)
+                }
+                Spacer()
+                if selected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(Paper.terra)
+                }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 13)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(L(opt.native)))
+        .accessibilityAddTraits(selected ? [.isSelected] : [])
+    }
 }

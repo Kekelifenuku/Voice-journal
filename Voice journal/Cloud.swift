@@ -89,15 +89,15 @@ final class CloudBackupManager: ObservableObject {
     /// User-facing one-liner for the status row.
     var statusText: String {
         switch phase {
-        case .working:            return "Working…"
+        case .working:            return String(localized: "Working…", bundle: AppLocale.bundle)
         case .failed(let m):      return m
-        case .unavailable:        return "iCloud unavailable"
+        case .unavailable:        return String(localized: "iCloud unavailable", bundle: AppLocale.bundle)
         case .idle, .done:
-            guard available else { return "iCloud unavailable" }
+            guard available else { return String(localized: "iCloud unavailable", bundle: AppLocale.bundle) }
             if let d = lastBackup {
                 return "Last backup \(d.formatted(.relative(presentation: .named)))"
             }
-            return "Ready — not backed up yet"
+            return String(localized: "Ready — not backed up yet", bundle: AppLocale.bundle)
         }
     }
 }

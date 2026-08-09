@@ -55,8 +55,8 @@ struct PaywallSheet: View {
         #else
         // Fallback used only until the RevenueCatUI package finishes resolving.
         VStack(spacing: 14) {
-            Text("Paywall unavailable").font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
-            Text("RevenueCat isn't linked in this build.").font(Typo.sans(13)).foregroundColor(Paper.ink3)
+            Text(L("Paywall unavailable")).font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
+            Text(L("RevenueCat isn't linked in this build.")).font(Typo.sans(13)).foregroundColor(Paper.ink3)
         }
         .padding(24)
         #endif

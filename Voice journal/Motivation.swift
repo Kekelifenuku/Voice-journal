@@ -11,8 +11,8 @@ struct MotivationQuote: Codable, Equatable {
     var text: String
     var author: String
 
-    /// Offline fallback drawn from the bundled pack.
-    static var fallback: MotivationQuote { MotivationQuote(text: Motivation.today(), author: "") }
+    /// Offline fallback drawn from the bundled pack, localized to the app language.
+    static var fallback: MotivationQuote { MotivationQuote(text: L(Motivation.today()), author: "") }
 }
 
 @MainActor
@@ -27,6 +27,11 @@ final class MotivationService: ObservableObject {
 
     /// Load today's quote: cached copy if we already fetched today, otherwise the API's "quote of the day".
     func loadDaily() {
+        // ZenQuotes only serves English, so non-English UIs use the localized local pack.
+        guard AppLocale.isEnglish else {
+            quote = MotivationQuote(text: L(Motivation.today()), author: "")
+            return
+        }
         if UserDefaults.standard.string(forKey: dateKey) == Self.dayString(),
            let data = UserDefaults.standard.data(forKey: cacheKey),
            let q = try? JSONDecoder().decode(MotivationQuote.self, from: data) {
@@ -37,7 +42,13 @@ final class MotivationService: ObservableObject {
     }
 
     /// User tapped refresh → a fresh random quote (not persisted as today's).
-    func shuffle() { fetch(path: "random", persistForToday: false) }
+    func shuffle() {
+        guard AppLocale.isEnglish else {
+            quote = MotivationQuote(text: L(Motivation.all.randomElement() ?? Motivation.today()), author: "")
+            return
+        }
+        fetch(path: "random", persistForToday: false)
+    }
 
     private func fetch(path: String, persistForToday: Bool) {
         guard !loading, let url = URL(string: "\(base)/\(path)") else { return }
@@ -81,7 +92,7 @@ struct MotivationCard: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: "sun.max").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
-                    Text("Daily motivation").eyebrow()
+                    Text(L("Daily motivation")).eyebrow()
                 }
                 Spacer()
                 Button {
@@ -95,7 +106,7 @@ struct MotivationCard: View {
                                    value: service.loading)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("New motivation")
+                .accessibilityLabel(L("New motivation"))
             }
 
             Text("\u{201C}\(service.quote.text)\u{201D}")

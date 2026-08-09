@@ -24,11 +24,11 @@ enum Sentiment {
     /// A short, human-friendly label for a sentiment score.
     static func label(for s: Double) -> String {
         switch s {
-        case ..<(-0.35): return "Heavy"
-        case ..<(-0.10): return "Low"
-        case ..<0.10:    return "Even"
-        case ..<0.35:    return "Bright"
-        default:         return "Uplifted"
+        case ..<(-0.35): return String(localized: "Heavy", bundle: AppLocale.bundle)
+        case ..<(-0.10): return String(localized: "Low", bundle: AppLocale.bundle)
+        case ..<0.10:    return String(localized: "Even", bundle: AppLocale.bundle)
+        case ..<0.35:    return String(localized: "Bright", bundle: AppLocale.bundle)
+        default:         return String(localized: "Uplifted", bundle: AppLocale.bundle)
         }
     }
 

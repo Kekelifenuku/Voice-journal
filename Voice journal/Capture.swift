@@ -12,6 +12,8 @@ struct CaptureView: View {
     @State private var savedNote = false
     @State private var pulse = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.isPro) private var isPro
+    @Environment(\.presentPaywall) private var presentPaywall
 
     private var isRecording: Bool { engine.state == .recording }
     private var isPaused: Bool { engine.state == .paused }
@@ -29,8 +31,8 @@ struct CaptureView: View {
                 // Prompt
                 if settings.showPromptOnCapture {
                     VStack(alignment: .leading, spacing: 12) {
-                        Text("Today's prompt").eyebrow()
-                        Text(PersonalPrompts.today(entries: store.entries))
+                        Text(L("Today's prompt")).eyebrow()
+                        Text(L(PersonalPrompts.today(entries: store.entries)))
                             .font(Typo.serifItalic(26))
                             .foregroundColor(Paper.ink)
                             .lineSpacing(6)
@@ -86,7 +88,7 @@ struct CaptureView: View {
     private var header: some View {
         HStack {
             VStack(alignment: .leading, spacing: 2) {
-                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                Text(Date().formatted(.dateTime.weekday(.wide).month(.wide).day().locale(AppLocale.locale)))
                     .font(Typo.sans(15, .medium))
                     .foregroundColor(Paper.ink2)
             }
@@ -104,7 +106,7 @@ struct CaptureView: View {
                     .frame(width: 8, height: 8)
                     .opacity(isRecording ? (pulse ? 0.4 : 1) : 1)
                     .animation(isRecording ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: pulse)
-                Text(isPaused ? "PAUSED" : "LISTENING")
+                Text(L(isPaused ? "PAUSED" : "LISTENING"))
                     .font(Typo.sans(11, .semibold)).tracking(1.6)
                     .foregroundColor(Paper.ink3)
                 Text("· \(engine.elapsedFormatted())")
@@ -140,7 +142,7 @@ struct CaptureView: View {
     private var liveText: String { transcription.liveText }
     private var liveDisplay: String {
         if !liveText.isEmpty { return liveText }
-        return isPaused ? "Paused — resume when you're ready." : "Listening… speak freely."
+        return isPaused ? String(localized: "Paused — resume when you're ready.", bundle: AppLocale.bundle) : String(localized: "Listening… speak freely.", bundle: AppLocale.bundle)
     }
 
     // MARK: Controls
@@ -156,7 +158,7 @@ struct CaptureView: View {
                     HStack(spacing: 8) {
                         Image(systemName: isPaused ? "play.fill" : "pause.fill")
                             .font(.system(size: 12, weight: .bold))
-                        Text(isPaused ? "Resume" : "Pause").font(Typo.sans(14, .semibold))
+                        Text(L(isPaused ? "Resume" : "Pause")).font(Typo.sans(14, .semibold))
                     }
                     .foregroundColor(Paper.terra)
                     .padding(.horizontal, 24).padding(.vertical, 11)
@@ -169,7 +171,7 @@ struct CaptureView: View {
 
             recordButton
 
-            Text(isRecording ? "TAP TO FINISH" : isPaused ? "TAP TO FINISH" : "TAP TO BEGIN")
+            Text(L(isRecording ? "TAP TO FINISH" : isPaused ? "TAP TO FINISH" : "TAP TO BEGIN"))
                 .font(Typo.sans(11, .semibold)).tracking(2)
                 .foregroundColor(Paper.ink3)
         }
@@ -215,7 +217,7 @@ struct CaptureView: View {
     private var savedBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill").foregroundColor(Paper.terra)
-            Text(transcription.isSupported && settings.autoTranscribe ? "Saved · transcribing…" : "Saved to your journal")
+            Text(L(transcription.isSupported && settings.autoTranscribe ? "Saved · transcribing…" : "Saved to your journal"))
                 .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink)
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
@@ -253,6 +255,13 @@ struct CaptureView: View {
         withAnimation { savedNote = true }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             withAnimation { savedNote = false }
+        }
+        // Highest-intent paywall moment: after their 3rd entry they clearly value the app.
+        // Delay slightly so the "Saved" banner registers first.
+        if !isPro && store.entries.count == 3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.6) {
+                presentPaywall()
+            }
         }
     }
 }

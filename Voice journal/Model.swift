@@ -15,12 +15,12 @@ enum Mood: String, Codable, CaseIterable, Identifiable {
     nonisolated var label: String {
         switch self {
         case .none:     return "—"
-        case .serene:   return "Calm"
-        case .joyful:   return "Joyful"
-        case .pensive:  return "Pensive"
-        case .tense:    return "Tense"
-        case .grateful: return "Grateful"
-        case .raw:      return "Raw"
+        case .serene:   return String(localized: "Calm", bundle: AppLocale.bundle)
+        case .joyful:   return String(localized: "Joyful", bundle: AppLocale.bundle)
+        case .pensive:  return String(localized: "Pensive", bundle: AppLocale.bundle)
+        case .tense:    return String(localized: "Tense", bundle: AppLocale.bundle)
+        case .grateful: return String(localized: "Grateful", bundle: AppLocale.bundle)
+        case .raw:      return String(localized: "Raw", bundle: AppLocale.bundle)
         }
     }
 
@@ -138,7 +138,7 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
     var preview: String {
         let source = !transcript.isEmpty ? transcript : note
         let trimmed = source.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.isEmpty { return "A moment, captured in your voice." }
+        if trimmed.isEmpty { return String(localized: "A moment, captured in your voice.", bundle: AppLocale.bundle) }
         return trimmed
     }
 
@@ -154,7 +154,7 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
         return "\(m) min \(String(format: "%02d", s)) sec"
     }
 
-    var timeShort: String { date.formatted(.dateTime.hour().minute()) }
+    var timeShort: String { date.formatted(.dateTime.hour().minute().locale(AppLocale.locale)) }
 
     var dayKey: String {
         let f = DateFormatter(); f.dateFormat = "yyyy-MM-dd"; return f.string(from: date)
@@ -163,11 +163,11 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
     /// Feed group label — "Today", "Yesterday", "Mon, Jul 6".
     var groupLabel: String {
         let cal = Calendar.current
-        if cal.isDateInToday(date)     { return "Today" }
-        if cal.isDateInYesterday(date) { return "Yesterday" }
+        if cal.isDateInToday(date)     { return String(localized: "Today", bundle: AppLocale.bundle) }
+        if cal.isDateInYesterday(date) { return String(localized: "Yesterday", bundle: AppLocale.bundle) }
         let d = cal.dateComponents([.day], from: date, to: .now).day ?? 0
-        if d < 7 { return date.formatted(.dateTime.weekday(.abbreviated)) }
-        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day())
+        if d < 7 { return date.formatted(.dateTime.weekday(.abbreviated).locale(AppLocale.locale)) }
+        return date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().locale(AppLocale.locale))
     }
 }
 

@@ -1,0 +1,11 @@
+app_identifier "kekeli.Voice-journal"
+
+# Only update metadata — no binary upload, no screenshots
+skip_binary_upload true
+skip_screenshots true
+
+# Use the metadata folder we generated
+metadata_path "./fastlane/metadata"
+
+# Automatically submit metadata without interactive prompts
+force true

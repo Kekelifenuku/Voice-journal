@@ -66,7 +66,7 @@ struct OnboardingView: View {
                     }
                     Spacer()
                     if !isLast {
-                        Button("Skip") { HX.tap(); onComplete() }
+                        Button(L("Skip")) { HX.tap(); onComplete() }
                             .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink3)
                     }
                 }
@@ -108,7 +108,7 @@ struct OnboardingView: View {
                     } else { HX.ok(); onComplete() }
                 } label: {
                     HStack(spacing: 8) {
-                        Text(isLast ? "Start journaling" : "Continue")
+                        Text(L(isLast ? "Start journaling" : "Continue"))
                             .font(Typo.sans(16, .semibold))
                         Image(systemName: isLast ? "mic.fill" : "arrow.right")
                             .font(.system(size: 14, weight: .bold))
@@ -164,7 +164,7 @@ private struct WaveHero: View {
                 }
             }
             Image(systemName: "arrow.down").font(.system(size: 12, weight: .bold)).foregroundColor(Paper.ink3)
-            Text("\u{201C}I've been trying to slow down\u{2026}\u{201D}")
+            Text(L("\u{201C}I've been trying to slow down\u{2026}\u{201D}"))
                 .font(Typo.serifItalic(17)).foregroundColor(Paper.ink2)
         }
     }
@@ -188,9 +188,9 @@ private struct SummaryHero: View {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundColor(Paper.terra)
-                    Text("Summary").eyebrow()
+                    Text(L("Summary")).eyebrow()
                 }
-                Text("A calm week, with room to breathe.")
+                Text(L("A calm week, with room to breathe."))
                     .font(Typo.sans(15)).foregroundColor(Paper.ink)
             }
             .padding(16)
@@ -213,9 +213,9 @@ private struct PromptHero: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 5) {
                     Image(systemName: "text.quote").font(.system(size: 11, weight: .semibold))
-                    Text("Today's prompt").eyebrow()
+                    Text(L("Today's prompt")).eyebrow()
                 }
-                Text("Where did you feel most like yourself today?")
+                Text(L("Where did you feel most like yourself today?"))
                     .font(Typo.serifItalic(20)).foregroundColor(Paper.ink).lineSpacing(4)
             }
             .frame(width: 210, alignment: .leading)
@@ -263,7 +263,7 @@ private struct ModelHero: View {
             }
             .animation(.spring(response: 0.4, dampingFraction: 0.7), value: ready)
 
-            Text(ready ? "Transcription ready" : "Preparing transcription\u{2026}")
+            Text(L(ready ? "Transcription ready" : "Preparing transcription\u{2026}"))
                 .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink3)
         }
     }

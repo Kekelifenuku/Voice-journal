@@ -67,7 +67,7 @@ struct JournalView: View {
                                                       systemImage: entry.isFavorite ? "heart.slash" : "heart")
                                             }
                                             Button(role: .destructive) { store.remove(entry); HX.warn() } label: {
-                                                Label("Delete", systemImage: "trash")
+                                                Label(L("Delete"), systemImage: "trash")
                                             }
                                         }
                                     }
@@ -102,8 +102,8 @@ struct JournalView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(Date().formatted(.dateTime.month(.wide).year())).eyebrow()
-                Text("Your journal")
+                Text(Date().formatted(.dateTime.month(.wide).year().locale(AppLocale.locale))).eyebrow()
+                Text(L("Your journal"))
                     .font(Typo.sans(32, .bold))
                     .foregroundColor(Paper.ink)
             }
@@ -132,7 +132,7 @@ struct JournalView: View {
     private var searchField: some View {
         HStack(spacing: 10) {
             Image(systemName: "magnifyingglass").foregroundColor(Paper.ink3)
-            TextField("Search entries & transcripts", text: $store.searchQuery)
+            TextField(L("Search entries & transcripts"), text: $store.searchQuery)
                 .font(Typo.sans(15))
                 .foregroundColor(Paper.ink)
                 .focused($searchFocused)
@@ -158,9 +158,9 @@ struct JournalView: View {
                 .font(.system(size: 46, weight: .light))
                 .foregroundColor(Paper.terra.opacity(0.6))
                 .accessibilityHidden(true)
-            Text("Your journal is quiet")
+            Text(L("Your journal is quiet"))
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
-            Text("Speak your first entry and it'll\nappear here, transcribed.")
+            Text(L("Speak your first entry and it'll\nappear here, transcribed."))
                 .font(Typo.serifItalic(16))
                 .foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center)
@@ -176,7 +176,7 @@ struct JournalView: View {
         VStack(spacing: 10) {
             Spacer().frame(height: 40)
             Image(systemName: "magnifyingglass").font(.system(size: 30)).foregroundColor(Paper.muted)
-            Text("No matches").font(Typo.sans(16, .medium)).foregroundColor(Paper.ink3)
+            Text(L("No matches")).font(Typo.sans(16, .medium)).foregroundColor(Paper.ink3)
         }
         .frame(maxWidth: .infinity).padding(.top, 30)
     }
@@ -283,7 +283,7 @@ struct MiniPlayerBar: View {
                 Button { HX.tap(); engine.skip(seconds: -15) } label: {
                     Image(systemName: "gobackward.15").font(.system(size: 18)).foregroundColor(Paper.ink2)
                 }.buttonStyle(.plain)
-                .accessibilityLabel("Skip back 15 seconds")
+                .accessibilityLabel(L("Skip back 15 seconds"))
 
                 Button { HX.press(); engine.togglePlay(entry: entry) } label: {
                     Image(systemName: engine.state == .playing ? "pause.fill" : "play.fill")
@@ -294,7 +294,7 @@ struct MiniPlayerBar: View {
                 Button { HX.tap(); engine.stopPlaying() } label: {
                     Image(systemName: "xmark").font(.system(size: 13, weight: .bold)).foregroundColor(Paper.ink3)
                 }.buttonStyle(.plain)
-                .accessibilityLabel("Stop playback")
+                .accessibilityLabel(L("Stop playback"))
             }
             .padding(.horizontal, 18).padding(.vertical, 12)
         }

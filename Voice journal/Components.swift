@@ -62,19 +62,19 @@ struct UndoToast: View {
             Image(systemName: "trash")
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(Paper.ink3)
-            Text(title)
+            Text(L(title))
                 .font(Typo.sans(14, .medium))
                 .foregroundColor(Paper.ink)
                 .lineLimit(1)
             Spacer(minLength: 8)
             Button(action: onUndo) {
-                Text("Undo")
+                Text(L("Undo"))
                     .font(Typo.sans(14, .semibold))
                     .foregroundColor(Paper.terra)
                     .padding(.horizontal, 6).padding(.vertical, 2)
             }
             .buttonStyle(.plain)
-            .accessibilityHint("Restores the deleted entry")
+            .accessibilityHint(L("Restores the deleted entry"))
         }
         .padding(.leading, 18).padding(.trailing, 12).padding(.vertical, 11)
         .background(Paper.white)
@@ -96,7 +96,7 @@ struct PrimaryCapsuleButton: View {
                 if let icon {
                     Image(systemName: icon).font(.system(size: 14, weight: .bold))
                 }
-                Text(title).font(Typo.sans(15, .semibold))
+                Text(L(title)).font(Typo.sans(15, .semibold))
             }
             .foregroundColor(Paper.white)
             .padding(.horizontal, 22).padding(.vertical, 13)
@@ -153,12 +153,12 @@ struct WeekMoodStrip: View {
     private func dayName(_ indexFromOldest: Int) -> String {
         let back = 6 - indexFromOldest
         let day = Calendar.current.date(byAdding: .day, value: -back, to: Date()) ?? Date()
-        return day.formatted(.dateTime.weekday(.wide))
+        return day.formatted(.dateTime.weekday(.wide).locale(AppLocale.locale))
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("This week's mood").eyebrow(Paper.ink3)
+            Text(L("This week's mood")).eyebrow(Paper.ink3)
             HStack(spacing: 10) {
                 ForEach(Array(moods.enumerated()), id: \.offset) { i, m in
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
@@ -170,7 +170,7 @@ struct WeekMoodStrip: View {
                                 .stroke(Paper.hair, lineWidth: m == nil ? 1 : 0)
                         )
                         .accessibilityElement()
-                        .accessibilityLabel("\(dayName(i)): \(m?.label ?? "no entry")")
+                        .accessibilityLabel("\(dayName(i)): \(m?.label ?? String(localized: "no entry", bundle: AppLocale.bundle))")
                 }
             }
             .accessibilityElement(children: .contain)

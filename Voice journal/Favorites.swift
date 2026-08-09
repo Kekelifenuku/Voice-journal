@@ -37,10 +37,10 @@ struct FavoritesView: View {
                                     Button {
                                         var e = entry; e.isFavorite.toggle(); store.update(e); HX.tap()
                                     } label: {
-                                        Label("Remove from favorites", systemImage: "heart.slash")
+                                        Label(L("Remove from favorites"), systemImage: "heart.slash")
                                     }
                                     Button(role: .destructive) { store.remove(entry); HX.warn() } label: {
-                                        Label("Delete", systemImage: "trash")
+                                        Label(L("Delete"), systemImage: "trash")
                                     }
                                 }
                             }
@@ -69,8 +69,8 @@ struct FavoritesView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(favorites.isEmpty ? "Saved" : "\(favorites.count) saved").eyebrow()
-            Text("Favorites")
+            Text(favorites.isEmpty ? L("Saved") : String(localized: "\(favorites.count) saved", bundle: AppLocale.bundle)).eyebrow()
+            Text(L("Favorites"))
                 .font(Typo.sans(32, .bold))
                 .foregroundColor(Paper.ink)
         }
@@ -86,7 +86,7 @@ struct FavoritesView: View {
                 .font(.system(size: 44, weight: .light))
                 .foregroundColor(Paper.terra.opacity(0.6))
                 .accessibilityHidden(true)
-            Text("No favorites yet")
+            Text(L("No favorites yet"))
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
             Text(store.entries.isEmpty
                  ? "Record an entry, then tap the\nheart to keep it here."

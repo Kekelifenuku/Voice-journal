@@ -60,6 +60,13 @@ final class PurchaseManager: ObservableObject {
         #endif
     }
 
+    /// Restore any previously completed purchases, then refresh entitlements.
+    func restore() async {
+        #if canImport(RevenueCat)
+        if let info = try? await Purchases.shared.restorePurchases() { apply(info) }
+        #endif
+    }
+
     #if canImport(RevenueCat)
     private func apply(_ info: CustomerInfo) {
         let entitlement = info.entitlements[Pro.entitlement]

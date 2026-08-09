@@ -11,7 +11,7 @@ struct MoodFilterChips: View {
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                chip("All", active: store.moodFilter == nil, tint: Paper.ink) {
+                chip(L("All"), active: store.moodFilter == nil, tint: Paper.ink) {
                     store.moodFilter = nil; HX.tick()
                 }
                 ForEach(Mood.selectable) { m in
@@ -35,7 +35,7 @@ struct MoodFilterChips: View {
                 .overlay(Capsule().stroke(active ? tint.opacity(0.5) : Paper.hair, lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Filter by \(label)")
+        .accessibilityLabel(String(localized: "Filter by \(label)", bundle: AppLocale.bundle))
         .accessibilityAddTraits(active ? [.isSelected] : [])
     }
 }
@@ -52,6 +52,11 @@ struct CalendarMonthView: View {
     @State private var selected: Date?
 
     private var cal: Calendar { Calendar.current }
+    /// Weekday header symbols in the selected app language.
+    private var weekdaySymbols: [String] {
+        var c = Calendar.current; c.locale = AppLocale.locale
+        return c.veryShortWeekdaySymbols
+    }
     private var entriesForSelected: [VoiceEntry] {
         guard let s = selected else { return [] }
         return store.entries
@@ -65,7 +70,7 @@ struct CalendarMonthView: View {
             HStack {
                 navButton("chevron.left") { shift(-1) }
                 Spacer()
-                Text(displayed.formatted(.dateTime.month(.wide).year()))
+                Text(displayed.formatted(.dateTime.month(.wide).year().locale(AppLocale.locale)))
                     .font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
                 Spacer()
                 navButton("chevron.right") { shift(1) }
@@ -73,7 +78,7 @@ struct CalendarMonthView: View {
             .padding(.horizontal, 24)
 
             // Weekday headers
-            let weekdays = ["S", "M", "T", "W", "T", "F", "S"]
+            let weekdays = weekdaySymbols
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4), count: 7), spacing: 6) {
                 ForEach(Array(weekdays.enumerated()), id: \.offset) { _, d in
                     Text(d).font(Typo.sans(11, .semibold)).foregroundColor(Paper.ink3).frame(height: 22)
@@ -91,7 +96,7 @@ struct CalendarMonthView: View {
             // Selected day entries
             if selected != nil {
                 if entriesForSelected.isEmpty {
-                    Text("No entries this day")
+                    Text(L("No entries this day"))
                         .font(Typo.serifItalic(15)).foregroundColor(Paper.ink3).padding(.top, 6)
                 } else {
                     LazyVStack(spacing: 12) {
@@ -144,8 +149,8 @@ struct CalendarMonthView: View {
 
     /// VoiceOver label for a calendar day, e.g. "Today, July 6, 2 entries".
     private func dayLabel(_ day: Date, count: Int, isToday: Bool) -> String {
-        let date = day.formatted(.dateTime.month(.wide).day())
-        let entries = count == 0 ? "no entries" : (count == 1 ? "1 entry" : "\(count) entries")
+        let date = day.formatted(.dateTime.month(.wide).day().locale(AppLocale.locale))
+        let entries = count == 0 ? String(localized: "no entries", bundle: AppLocale.bundle) : (count == 1 ? String(localized: "1 entry", bundle: AppLocale.bundle) : "\(count) entries")
         return "\(isToday ? "Today, " : "")\(date), \(entries)"
     }
 

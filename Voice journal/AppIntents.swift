@@ -34,7 +34,7 @@ private struct PromptSnippet: View {
     let text: String
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Today's prompt").eyebrow()
+            Text(L("Today's prompt")).eyebrow()
             Text(text).font(Typo.serifItalic(20)).foregroundColor(Paper.ink)
         }
         .padding(18)

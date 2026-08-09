@@ -50,8 +50,8 @@ struct InsightsView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Reflect").eyebrow()
-            Text("Insights").font(Typo.sans(32, .bold)).foregroundColor(Paper.ink)
+            Text(L("Reflect")).eyebrow()
+            Text(L("Insights")).font(Typo.sans(32, .bold)).foregroundColor(Paper.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.top, 6)
@@ -74,7 +74,7 @@ struct InsightsView: View {
 
     private var activityCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Last 14 days").eyebrow(Paper.ink3)
+            Text(L("Last 14 days")).eyebrow(Paper.ink3)
             Chart(last14) { p in
                 BarMark(
                     x: .value("Day", p.date, unit: .day),
@@ -105,7 +105,7 @@ struct InsightsView: View {
 
     private var moodCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("How you've felt").eyebrow(Paper.ink3)
+            Text(L("How you've felt")).eyebrow(Paper.ink3)
             let maxCount = max(1, moodCounts.map(\.count).max() ?? 1)
             VStack(spacing: 10) {
                 ForEach(moodCounts, id: \.mood) { mc in
@@ -138,7 +138,7 @@ struct InsightsView: View {
 
     private var themesCard: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Recurring themes").eyebrow(Paper.ink3)
+            Text(L("Recurring themes")).eyebrow(Paper.ink3)
             FlowLayout(spacing: 8, lineSpacing: 8) {
                 ForEach(topThemes, id: \.0) { theme, count in
                     HStack(spacing: 6) {
@@ -163,13 +163,13 @@ struct InsightsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "clock.arrow.circlepath").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
-                Text("On this day").eyebrow()
+                Text(L("On this day")).eyebrow()
             }
             ForEach(onThisDay.prefix(4)) { entry in
                 NavigationLink(value: entry) {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(entry.date.formatted(.dateTime.year()))
+                            Text(entry.date.formatted(.dateTime.year().locale(AppLocale.locale)))
                                 .font(Typo.sans(12, .semibold)).foregroundColor(Paper.terra)
                             Text(entry.preview)
                                 .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
@@ -194,11 +194,11 @@ struct InsightsView: View {
     private var advancedSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Text("Advanced").eyebrow()
+                Text(L("Advanced")).eyebrow()
                 if !purchases.isPro {
                     HStack(spacing: 3) {
                         Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
-                        Text("PRO").font(Typo.sans(9, .bold)).tracking(0.4)
+                        Text(L("PRO")).font(Typo.sans(9, .bold)).tracking(0.4)
                     }
                     .foregroundColor(Paper.white)
                     .padding(.horizontal, 6).padding(.vertical, 3)
@@ -226,12 +226,12 @@ struct InsightsView: View {
     private var sentimentCard: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Emotional trend").eyebrow(Paper.ink3)
+                Text(L("Emotional trend")).eyebrow(Paper.ink3)
                 Spacer()
                 if let delta = Trends.sentimentDelta(store.entries) {
                     HStack(spacing: 4) {
                         Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
-                        Text(delta >= 0 ? "Brightening" : "Softening")
+                        Text(L(delta >= 0 ? "Brightening" : "Softening"))
                     }
                     .font(Typo.sans(11, .semibold))
                     .foregroundColor(Paper.terra)
@@ -272,8 +272,8 @@ struct InsightsView: View {
                 Image(systemName: "sunrise").font(.system(size: 18, weight: .semibold)).foregroundColor(Paper.terra)
             }
             VStack(alignment: .leading, spacing: 3) {
-                Text("You journal most").font(Typo.sans(12, .medium)).foregroundColor(Paper.ink3)
-                Text(Trends.bestWindow(store.entries) ?? "Not enough entries yet")
+                Text(L("You journal most")).font(Typo.sans(12, .medium)).foregroundColor(Paper.ink3)
+                Text(Trends.bestWindow(store.entries) ?? String(localized: "Not enough entries yet", bundle: AppLocale.bundle))
                     .font(Typo.sans(16, .semibold)).foregroundColor(Paper.ink)
             }
             Spacer()
@@ -295,7 +295,7 @@ struct InsightsView: View {
     }
     private func paceStat(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(label).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+            Text(L(label)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
             Text(value).font(Typo.sans(17, .bold)).foregroundColor(Paper.ink)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -303,7 +303,7 @@ struct InsightsView: View {
 
     private var trendingCard: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Trending this month").eyebrow(Paper.ink3)
+            Text(L("Trending this month")).eyebrow(Paper.ink3)
             VStack(spacing: 10) {
                 ForEach(trendingThemes.prefix(4), id: \.theme) { t in
                     HStack {
@@ -339,15 +339,15 @@ struct InsightsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 HStack(spacing: 8) {
                     Image(systemName: "sparkles").font(.system(size: 14, weight: .semibold)).foregroundColor(Paper.terra)
-                    Text("See deeper patterns")
+                    Text(L("See deeper patterns"))
                         .font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
                 }
-                Text("Emotional trend, best time to journal, speaking pace, trending themes — all computed on your device.")
+                Text(L("Emotional trend, best time to journal, speaking pace, trending themes — all computed on your device."))
                     .font(Typo.serifItalic(14)).foregroundColor(Paper.ink2).lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
                     Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold))
-                    Text("Unlock with Pro").font(Typo.sans(13, .semibold))
+                    Text(L("Unlock with Pro")).font(Typo.sans(13, .semibold))
                 }
                 .foregroundColor(Paper.terra)
             }
@@ -371,9 +371,9 @@ struct InsightsView: View {
             Spacer().frame(height: 60)
             Image(systemName: "chart.bar.xaxis").font(.system(size: 44, weight: .light)).foregroundColor(Paper.terra.opacity(0.6))
                 .accessibilityHidden(true)
-            Text("Nothing to reflect on yet")
+            Text(L("Nothing to reflect on yet"))
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
-            Text("Record a few entries and your\ntrends will appear here.")
+            Text(L("Record a few entries and your\ntrends will appear here."))
                 .font(Typo.serifItalic(16)).foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center).lineSpacing(4)
             PrimaryCapsuleButton(title: "Record your first entry", icon: "mic.fill", action: goToCapture)
@@ -415,7 +415,7 @@ struct InsightsView: View {
     private func stat(_ v: String, _ l: String) -> some View {
         VStack(spacing: 5) {
             Text(v).font(Typo.sans(22, .bold)).foregroundColor(Paper.ink)
-            Text(l).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+            Text(L(l)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
         }
         .frame(maxWidth: .infinity)
     }

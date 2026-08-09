@@ -45,7 +45,7 @@ struct ReflectView: View {
 
                 // Title block
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(entry.date.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                    Text(entry.date.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(AppLocale.locale)))
                         .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink3)
                     Text(entry.title)
                         .font(Typo.sans(28, .bold)).foregroundColor(Paper.ink)
@@ -63,7 +63,7 @@ struct ReflectView: View {
                 if !entry.prompt.isEmpty {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "text.quote").font(.system(size: 13)).foregroundColor(Paper.terra)
-                        Text(entry.prompt).font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
+                        Text(L(entry.prompt)).font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.horizontal, 24)
@@ -89,10 +89,10 @@ struct ReflectView: View {
             }
             .padding(.top, 6)
         }
-        .alert("Rename entry", isPresented: $showRename) {
-            TextField("Title", text: $renameText)
-            Button("Cancel", role: .cancel) {}
-            Button("Save") {
+        .alert(L("Rename entry"), isPresented: $showRename) {
+            TextField(L("Title"), text: $renameText)
+            Button(L("Cancel"), role: .cancel) {}
+            Button(L("Save")) {
                 var e = entry
                 let t = renameText.trimmingCharacters(in: .whitespaces)
                 if !t.isEmpty { e.title = t; store.update(e); HX.soft() }
@@ -127,17 +127,17 @@ struct ReflectView: View {
 
                 Menu {
                     Button { renameText = entry.title; showRename = true } label: {
-                        Label("Rename", systemImage: "pencil")
+                        Label(L("Rename"), systemImage: "pencil")
                     }
-                    Button { showShare = true } label: { Label("Share audio", systemImage: "square.and.arrow.up") }
+                    Button { showShare = true } label: { Label(L("Share audio"), systemImage: "square.and.arrow.up") }
                     if transcription.isSupported {
                         Button { transcription.transcribe(entry, store: store, force: true); HX.tap() } label: {
-                            Label(entry.transcript.isEmpty ? "Transcribe" : "Re-transcribe", systemImage: "waveform")
+                            Label(L(entry.transcript.isEmpty ? "Transcribe" : "Re-transcribe"), systemImage: "waveform")
                         }
                     }
                     Divider()
                     Button(role: .destructive) { store.remove(entry); dismiss() } label: {
-                        Label("Delete", systemImage: "trash")
+                        Label(L("Delete"), systemImage: "trash")
                     }
                 } label: {
                     Image(systemName: "ellipsis")
@@ -157,7 +157,7 @@ struct ReflectView: View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 6) {
                 Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
-                Text("Summary").eyebrow()
+                Text(L("Summary")).eyebrow()
             }
             Text(entry.summary)
                 .font(Typo.sans(16))
@@ -178,9 +178,9 @@ struct ReflectView: View {
     private func transcriptSection(_ entry: VoiceEntry) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Transcript").eyebrow(Paper.ink3)
+                Text(L("Transcript")).eyebrow(Paper.ink3)
                 if !entry.words.isEmpty && !editingTranscript {
-                    Text("· tap a word to play")
+                    Text(L("· tap a word to play"))
                         .font(Typo.sans(11)).foregroundColor(Paper.muted)
                 }
                 Spacer()
@@ -195,7 +195,7 @@ struct ReflectView: View {
                             transcriptDraft = entry.transcript; editingTranscript = true; HX.tap()
                         }
                     } label: {
-                        Text(editingTranscript ? "Done" : "Edit")
+                        Text(L(editingTranscript ? "Done" : "Edit"))
                             .font(Typo.sans(13, .semibold)).foregroundColor(Paper.terra)
                     }.buttonStyle(.plain)
                 }
@@ -222,7 +222,7 @@ struct ReflectView: View {
             } else if isWorking {
                 HStack(spacing: 10) {
                     ProgressView().tint(Paper.terra)
-                    Text(transcription.state == .preparing ? "Loading the on-device model…" : "Transcribing…")
+                    Text(L(transcription.state == .preparing ? "Loading the on-device model…" : "Transcribing…"))
                         .font(Typo.serifItalic(15)).foregroundColor(Paper.ink3)
                 }
                 .padding(.vertical, 8)
@@ -232,7 +232,7 @@ struct ReflectView: View {
                 } label: {
                     HStack(spacing: 8) {
                         Image(systemName: "waveform").font(.system(size: 14, weight: .semibold))
-                        Text("Transcribe this entry").font(Typo.sans(15, .semibold))
+                        Text(L("Transcribe this entry")).font(Typo.sans(15, .semibold))
                     }
                     .foregroundColor(Paper.terra)
                     .padding(.horizontal, 18).padding(.vertical, 12)
@@ -241,7 +241,7 @@ struct ReflectView: View {
                 }
                 .buttonStyle(.plain)
             } else {
-                Text("Transcription isn't available on this device.")
+                Text(L("Transcription isn't available on this device."))
                     .font(Typo.serifItalic(15)).foregroundColor(Paper.ink3)
             }
         }
@@ -252,7 +252,7 @@ struct ReflectView: View {
 
     private func moodSection(_ entry: VoiceEntry) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("How did it feel?").eyebrow(Paper.ink3)
+            Text(L("How did it feel?")).eyebrow(Paper.ink3)
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
                     ForEach(Mood.selectable) { m in
@@ -285,7 +285,7 @@ struct ReflectView: View {
     private func noteSection(_ entry: VoiceEntry) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Note").eyebrow(Paper.ink3)
+                Text(L("Note")).eyebrow(Paper.ink3)
                 Spacer()
                 Button {
                     if editingNote {
@@ -294,7 +294,7 @@ struct ReflectView: View {
                         noteDraft = entry.note; editingNote = true; noteFocused = true; HX.tap()
                     }
                 } label: {
-                    Text(editingNote ? "Done" : (entry.note.isEmpty ? "Add" : "Edit"))
+                    Text(L(editingNote ? "Done" : (entry.note.isEmpty ? "Add" : "Edit")))
                         .font(Typo.sans(13, .semibold)).foregroundColor(Paper.terra)
                 }.buttonStyle(.plain)
             }
@@ -311,7 +311,7 @@ struct ReflectView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(Paper.hair, lineWidth: 1))
             } else {
-                Text(entry.note.isEmpty ? "Add your own reflection…" : entry.note)
+                Text(entry.note.isEmpty ? String(localized: "Add your own reflection…", bundle: AppLocale.bundle) : entry.note)
                     .font(Typo.sans(15))
                     .foregroundColor(entry.note.isEmpty ? Paper.muted : Paper.ink2)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -330,11 +330,11 @@ struct ReflectView: View {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.triangle.branch").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
-                    Text("Similar entries").eyebrow()
+                    Text(L("Similar entries")).eyebrow()
                     if !isPro {
                         HStack(spacing: 3) {
                             Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
-                            Text("PRO").font(Typo.sans(9, .bold)).tracking(0.4)
+                            Text(L("PRO")).font(Typo.sans(9, .bold)).tracking(0.4)
                         }
                         .foregroundColor(Paper.white)
                         .padding(.horizontal, 6).padding(.vertical, 3)
@@ -348,7 +348,7 @@ struct ReflectView: View {
                         NavigationLink(value: m) {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 3) {
-                                    Text(m.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                    Text(m.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().locale(AppLocale.locale)))
                                         .font(Typo.sans(12, .semibold)).foregroundColor(Paper.terra)
                                     Text(m.preview)
                                         .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
@@ -364,12 +364,12 @@ struct ReflectView: View {
                 } else {
                     Button { presentPaywall() } label: {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Revisit entries with similar themes to this one.")
+                            Text(L("Revisit entries with similar themes to this one."))
                                 .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
                                 .fixedSize(horizontal: false, vertical: true)
                             HStack(spacing: 6) {
                                 Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold))
-                                Text("Unlock with Pro").font(Typo.sans(13, .semibold))
+                                Text(L("Unlock with Pro")).font(Typo.sans(13, .semibold))
                             }
                             .foregroundColor(Paper.terra)
                         }
