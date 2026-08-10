@@ -18,7 +18,7 @@ enum Pro {
 
 /// Public iOS API key from RevenueCat → Project settings → API keys → Apple app (starts with `appl_`).
 /// Replace this before shipping; while it's empty the SDK compiles but returns no offerings.
-private let revenueCatAPIKey = ""
+private let revenueCatAPIKey = "appl_sclIewBCBKtTaeTvgtRftnuyIaM"
 
 @MainActor
 final class PurchaseManager: ObservableObject {
