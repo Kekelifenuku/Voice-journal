@@ -40,11 +40,12 @@ extension EnvironmentValues {
 /// it dismisses itself; the app's `PurchaseManager.isPro` observer flips independently.
 struct PaywallSheet: View {
     @ObservedObject var purchases: PurchaseManager
+    var displayCloseButton = true
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         #if canImport(RevenueCatUI)
-        PaywallView(displayCloseButton: true)
+        PaywallView(displayCloseButton: displayCloseButton)
             .onPurchaseCompleted { _ in Task { await purchases.refresh(); dismiss() } }
             .onRestoreCompleted { info in
                 Task {

@@ -4,8 +4,9 @@
 import SwiftUI
 
 struct RootView: View {
+    private let onboardingKey = "vj_hard_paywall_onboarded_v1"
     @State private var showOnboarding =
-        !UserDefaults.standard.bool(forKey: "vj_onboarded")
+        !UserDefaults.standard.bool(forKey: "vj_hard_paywall_onboarded_v1")
     @AppStorage("s_appearance") private var appearance = "system"
     @AppStorage("s_applang") private var appLang = "system"
     // Shared so the model preloaded during onboarding is still loaded once the app starts.
@@ -22,15 +23,22 @@ struct RootView: View {
 
     var body: some View {
         ZStack {
-            RootTabView(transcription: transcription, purchases: purchases)
             if showOnboarding {
                 OnboardingView(transcription: transcription) {
+                    UserDefaults.standard.set(true, forKey: onboardingKey)
                     UserDefaults.standard.set(true, forKey: "vj_onboarded")
                     withAnimation(.easeInOut(duration: 0.45)) { showOnboarding = false }
                 }
                 .transition(.asymmetric(insertion: .opacity,
                                         removal: .move(edge: .bottom).combined(with: .opacity)))
                 .zIndex(10)
+            } else if !purchases.hasLoaded {
+                EntitlementLoadingView()
+            } else if purchases.isPro {
+                RootTabView(transcription: transcription, purchases: purchases)
+            } else {
+                PaywallSheet(purchases: purchases, displayCloseButton: false)
+                    .transition(.opacity)
             }
         }
         .environment(\.locale, AppLocale.locale)
@@ -45,6 +53,21 @@ struct RootView: View {
         }
         .onChange(of: rootScenePhase) { _, phase in
             if phase == .active { Task { await purchases.refresh() } }
+        }
+    }
+}
+
+private struct EntitlementLoadingView: View {
+    var body: some View {
+        ZStack {
+            Paper.bg.ignoresSafeArea()
+            VStack(spacing: 14) {
+                ProgressView()
+                    .tint(Paper.terra)
+                Text(L("Checking access"))
+                    .font(Typo.sans(15, .medium))
+                    .foregroundColor(Paper.ink2)
+            }
         }
     }
 }

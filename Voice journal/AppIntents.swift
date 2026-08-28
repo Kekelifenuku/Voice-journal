@@ -21,11 +21,12 @@ struct NewEntryIntent: AppIntent {
 struct TodaysPromptIntent: AppIntent {
     static var title: LocalizedStringResource = "Today's Journal Prompt"
     static var description = IntentDescription("Get today's reflection prompt.")
+    static var openAppWhenRun = true
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let prompt = Prompts.today()
-        return .result(dialog: IntentDialog(stringLiteral: prompt)) {
-            PromptSnippet(text: prompt)
+        let message = "Open Voice Journal to unlock today's prompt."
+        return .result(dialog: IntentDialog(stringLiteral: message)) {
+            PromptSnippet(text: message)
         }
     }
 }

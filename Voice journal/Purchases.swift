@@ -24,6 +24,7 @@ private let revenueCatAPIKey = "appl_sclIewBCBKtTaeTvgtRftnuyIaM"
 final class PurchaseManager: ObservableObject {
     @Published var isPro = false
     @Published var activePlan: String?
+    @Published var hasLoaded = false
 
     #if canImport(RevenueCat)
     private final class Delegate: NSObject, PurchasesDelegate {
@@ -36,6 +37,13 @@ final class PurchaseManager: ObservableObject {
     #endif
 
     init() {
+        #if DEBUG
+        isPro = true
+        activePlan = "Local Debug"
+        hasLoaded = true
+        return
+        #endif
+
         #if canImport(RevenueCat)
         // Configure once. Safe to call from init because RevenueCat guards against double-configuration.
         if !Purchases.isConfigured {
@@ -50,20 +58,48 @@ final class PurchaseManager: ObservableObject {
         Purchases.shared.delegate = delegate
 
         Task { await refresh() }
+        #else
+        hasLoaded = true
         #endif
     }
 
     /// Fetch the latest entitlement snapshot (call after purchases, on foreground, etc.).
     func refresh() async {
+        #if DEBUG
+        isPro = true
+        activePlan = "Local Debug"
+        hasLoaded = true
+        return
+        #endif
+
         #if canImport(RevenueCat)
-        if let info = try? await Purchases.shared.customerInfo() { apply(info) }
+        if let info = try? await Purchases.shared.customerInfo() {
+            apply(info)
+        } else {
+            hasLoaded = true
+        }
+        #else
+        hasLoaded = true
         #endif
     }
 
     /// Restore any previously completed purchases, then refresh entitlements.
     func restore() async {
+        #if DEBUG
+        isPro = true
+        activePlan = "Local Debug"
+        hasLoaded = true
+        return
+        #endif
+
         #if canImport(RevenueCat)
-        if let info = try? await Purchases.shared.restorePurchases() { apply(info) }
+        if let info = try? await Purchases.shared.restorePurchases() {
+            apply(info)
+        } else {
+            hasLoaded = true
+        }
+        #else
+        hasLoaded = true
         #endif
     }
 
@@ -72,6 +108,7 @@ final class PurchaseManager: ObservableObject {
         let entitlement = info.entitlements[Pro.entitlement]
         let active = entitlement?.isActive == true
         isPro = active
+        hasLoaded = true
         if active {
             // Best-effort human label: prefer product id → title (Monthly/Annual/Lifetime), fall back to raw id.
             activePlan = Self.label(for: entitlement?.productIdentifier)
