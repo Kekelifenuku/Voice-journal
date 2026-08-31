@@ -323,6 +323,15 @@ final class JournalStore: ObservableObject {
     static func docURL(_ n: String) -> URL { Store.audioURL(n) }
     func docURL(_ n: String) -> URL { Store.audioURL(n) }
 
+    /// Merge restored entries into the store: existing entries win on id conflicts
+    /// (so local edits aren't clobbered) and any the store lacks are added back.
+    /// Shared by restore paths.
+    func mergeIn(_ restored: [VoiceEntry]) {
+        var byID = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
+        for e in restored where byID[e.id] == nil { byID[e.id] = e }
+        replaceAll(Array(byID.values).sorted { $0.date > $1.date })
+    }
+
     /// Replace the whole store (used by restore).
     func replaceAll(_ newEntries: [VoiceEntry]) {
         deleteWork.values.forEach { $0.cancel() }; deleteWork.removeAll()

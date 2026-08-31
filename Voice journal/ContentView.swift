@@ -78,7 +78,6 @@ struct RootTabView: View {
     @StateObject private var store         = JournalStore()
     @StateObject private var engine        = AudioEngine()
     @StateObject private var settings      = AppSettings()
-    @StateObject private var cloud         = CloudBackupManager()
     @State private var tab = 0
     // Rebuilds the tab subtree when the app language changes so every localized
     // Text re-resolves against the newly selected .lproj. The StateObjects above
@@ -121,14 +120,13 @@ struct RootTabView: View {
 
             NavigationStack {
                 SettingsView(settings: settings, store: store, transcription: transcription,
-                             cloud: cloud, purchases: purchases)
+                             purchases: purchases)
             }
             .tag(4)
             .tabItem { Label(L("Settings"), systemImage: "gearshape.fill") }
         }
         .id(appLang)
         .tint(Paper.terra)
-        .task { cloud.attach(store: store, settings: settings) }
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)   // scale text, but cap the extremes
         .overlay(alignment: .bottom) {
             if store.pendingDelete != nil {

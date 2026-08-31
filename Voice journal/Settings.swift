@@ -24,7 +24,6 @@ final class AppSettings: ObservableObject {
     @Published var liveTranscription  = false  { didSet { save() } }  // beta: stream words while recording
     @Published var appearance         = "system" { didSet { save() } } // system | light | dark
     @Published var appLanguage        = "system" { didSet { saveAppLanguage() } } // system | en | es | fr | ...
-    @Published var iCloudBackup       = false  { didSet { save() } }  // auto-mirror to iCloud Drive
     /// Flips true when the user enables reminders but notifications are denied — the view
     /// observes it to surface guidance, then resets it.
     @Published var reminderAuthDenied = false
@@ -87,7 +86,6 @@ final class AppSettings: ObservableObject {
         d.set(effectiveModelName, forKey: "s_model")   // read by TranscriptionManager
         d.set(appearance,         forKey: "s_appearance")
         d.set(liveTranscription,  forKey: "s_live")
-        d.set(iCloudBackup,       forKey: "s_icloud")
     }
     private func load() {
         isLoading = true
@@ -106,7 +104,6 @@ final class AppSettings: ObservableObject {
         appearance         = d.string(forKey: "s_appearance") ?? "system"
         appLanguage        = d.string(forKey: "s_applang") ?? "system"
         liveTranscription  = d.object(forKey: "s_live") as? Bool ?? false
-        iCloudBackup       = d.object(forKey: "s_icloud") as? Bool ?? false
         HX.setEnabled(hapticsEnabled)
     }
 
@@ -207,13 +204,12 @@ struct SettingsView: View {
     @ObservedObject var settings: AppSettings
     @ObservedObject var store: JournalStore
     @ObservedObject var transcription: TranscriptionManager
-    @ObservedObject var cloud: CloudBackupManager
     @ObservedObject var purchases: PurchaseManager
     @Environment(\.presentPaywall) private var presentPaywall
     @State private var showDeleteConfirm = false
     @State private var shareItems: [Any] = []
     @State private var showShare = false
-    @State private var showRestoreConfirm = false
+    @State private var showFileImporter   = false
     @State private var alertMessage: String?
 
     /// App version read from the bundle (CFBundleShortVersionString + build), so it never drifts.
@@ -373,46 +369,24 @@ struct SettingsView: View {
                         row("Version", icon: "app.badge", trailing: appVersion)
                     }
 
-                    // Backup — iCloud is Pro-gated
+                    // Backup
                     settingsGroup("Backup") {
-                        HStack {
-                            Label {
-                                Text(L("Back up to iCloud")).font(Typo.sans(15)).foregroundColor(Paper.ink)
-                            } icon: {
-                                Image(systemName: "icloud").foregroundColor(Paper.terra).frame(width: 22)
-                            }
-                            Spacer()
-                            if purchases.isPro {
-                                Toggle("", isOn: $settings.iCloudBackup)
-                                    .labelsHidden().tint(Paper.terra)
-                            } else {
-                                Button { presentPaywall() } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: "lock.fill").font(.system(size: 10, weight: .bold))
-                                        Text(L("Pro")).font(Typo.sans(11, .bold))
-                                    }
-                                    .foregroundColor(Paper.white)
-                                    .padding(.horizontal, 10).padding(.vertical, 5)
-                                    .background(Paper.terra).clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-                        .padding(.horizontal, 16).padding(.vertical, 13)
-                        if purchases.isPro { cloudStatusRow }
-                        divider
-                        linkRow("Back up now", "arrow.up.to.line.compact") {
-                            purchases.isPro ? cloud.backUpNow() : presentPaywall()
+                        backupActionRow("Save backup on this iPhone",
+                                        subtitle: "Keeps a zip copy in Files",
+                                        icon: "internaldrive") {
+                            saveDeviceBackup()
                         }
                         divider
-                        linkRow("Restore from iCloud", "arrow.down.to.line.compact") {
-                            purchases.isPro ? (showRestoreConfirm = true) : presentPaywall()
-                        }
+                        linkRow("Restore from file", "arrow.down.doc") { showFileImporter = true }
+                        divider
+                        // File backup is a portable .zip users can save to Files/Drive
+                        // and restore on any device. Free for everyone.
+                        linkRow("Export backup (.zip)", "arrow.up.doc") { exportBackupZip() }
                         divider
                         linkRow("Export as Markdown", "doc.text") { exportMarkdown() }
                     }
 
-                    Text(L("Your entries and audio mirror to your private iCloud Drive, so they survive a lost phone and come back when you sign in on a new one. Nothing is shared with anyone."))
+                    Text(L("Backups stay in Files on this iPhone and can be restored from a zip file."))
                         .font(Typo.sans(12))
                         .foregroundColor(Paper.ink3)
                         .padding(.horizontal, 8)
@@ -442,17 +416,17 @@ struct SettingsView: View {
         }
         .navigationTitle(L("Settings"))
         .navigationBarTitleDisplayMode(.large)
-        .onAppear { cloud.refresh() }
-        .onChange(of: settings.iCloudBackup) { _, on in
-            if on { cloud.refresh(); cloud.backUpNow() }
+        .fileImporter(isPresented: $showFileImporter,
+                      allowedContentTypes: [.zip],
+                      allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls): if let url = urls.first { importBackupFile(url) }
+            case .failure(let err):  alertMessage = err.localizedDescription
+            }
         }
         .sheet(isPresented: $showShare) {
             if !shareItems.isEmpty { ShareSheet(items: shareItems) }
         }
-        .confirmationDialog(L("Restore from iCloud?"), isPresented: $showRestoreConfirm, titleVisibility: .visible) {
-            Button(L("Restore")) { cloud.restore() }
-            Button(L("Cancel"), role: .cancel) {}
-        } message: { Text(L("Adds any entries and audio found in your iCloud backup. Your current entries are kept.")) }
         .alert("Voice Journal", isPresented: Binding(get: { alertMessage != nil }, set: { if !$0 { alertMessage = nil } })) {
             Button(L("OK"), role: .cancel) { alertMessage = nil }
         } message: { Text(alertMessage ?? "") }
@@ -502,7 +476,7 @@ struct SettingsView: View {
                     }
                     VStack(alignment: .leading, spacing: 3) {
                         Text(L("Unlock Voice Journal Pro")).font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
-                        Text(L("AI summaries, insights, iCloud backup")).font(Typo.sans(12)).foregroundColor(Paper.ink3)
+                        Text(L("AI summaries, insights, export tools")).font(Typo.sans(12)).foregroundColor(Paper.ink3)
                     }
                     Spacer()
                     Image(systemName: "chevron.right").font(.system(size: 13, weight: .bold)).foregroundColor(Paper.terra)
@@ -525,6 +499,59 @@ struct SettingsView: View {
         }
     }
 
+    /// Full portable backup (entries + audio + Markdown) as a .zip for the share sheet.
+    /// Zipping runs off the main thread so a large library doesn't freeze the UI.
+    private func exportBackupZip() {
+        guard !store.entries.isEmpty else { alertMessage = L("No entries to back up yet."); return }
+        HX.tap()
+        let entries = store.entries
+        Task {
+            do {
+                let url = try await Task.detached { try Exporter.backupZip(entries) }.value
+                await MainActor.run { shareItems = [url]; showShare = true }
+            } catch {
+                await MainActor.run { alertMessage = error.localizedDescription; HX.error() }
+            }
+        }
+    }
+
+    /// Save a compatible .zip directly to the app's local Documents folder.
+    private func saveDeviceBackup() {
+        guard !store.entries.isEmpty else { alertMessage = L("No entries to back up yet."); return }
+        HX.tap()
+        let entries = store.entries
+        Task {
+            do {
+                let url = try await Task.detached { try Exporter.saveDeviceBackup(entries) }.value
+                await MainActor.run {
+                    alertMessage = L("Backup saved on this iPhone in Files > On My iPhone > Voice Journal > Voice Journal Backups.")
+                    shareItems = [url]
+                    HX.ok()
+                }
+            } catch {
+                await MainActor.run { alertMessage = error.localizedDescription; HX.error() }
+            }
+        }
+    }
+
+    /// Restore a `.zip` produced by "Export backup": decode + write audio off the main
+    /// thread, then merge into the store (existing entries win on id conflicts).
+    private func importBackupFile(_ url: URL) {
+        HX.tap()
+        Task {
+            do {
+                let restored = try await Task.detached { try Exporter.importBackup(from: url) }.value
+                await MainActor.run {
+                    store.mergeIn(restored)
+                    alertMessage = L("Backup restored.")
+                    HX.ok()
+                }
+            } catch {
+                await MainActor.run { alertMessage = error.localizedDescription; HX.error() }
+            }
+        }
+    }
+
     private var modelStatusText: String {
         switch transcription.state {
         case .idle:         return String(localized: "Ready to load", bundle: AppLocale.bundle)
@@ -537,26 +564,6 @@ struct SettingsView: View {
     }
 
     // MARK: pieces
-
-    private var cloudStatusRow: some View {
-        HStack(spacing: 8) {
-            Image(systemName: cloud.available ? "checkmark.icloud" : "exclamationmark.icloud")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(cloud.available ? Paper.terra : Paper.ink3)
-                .frame(width: 22)
-            Text(cloud.statusText)
-                .font(Typo.sans(12))
-                .foregroundColor(Paper.ink3)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-            if cloud.phase == .working {
-                ProgressView().scaleEffect(0.7).tint(Paper.terra)
-            }
-        }
-        .padding(.horizontal, 16).padding(.bottom, 12)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel("iCloud status: \(cloud.statusText)")
-    }
 
     private func stat(_ v: String, _ l: String) -> some View {
         VStack(spacing: 5) {
@@ -644,6 +651,35 @@ struct SettingsView: View {
                     .foregroundColor(Paper.muted)
             }
             .padding(.horizontal, 16).padding(.vertical, 13)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func backupActionRow(_ title: String, subtitle: String, icon: String, action: @escaping () -> Void) -> some View {
+        Button(action: { HX.tap(); action() }) {
+            HStack(spacing: 12) {
+                ZStack {
+                    Circle().fill(Paper.terra.opacity(0.14)).frame(width: 38, height: 38)
+                    Image(systemName: icon)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Paper.terra)
+                }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L(title))
+                        .font(Typo.sans(15, .semibold))
+                        .foregroundColor(Paper.ink)
+                    Text(L(subtitle))
+                        .font(Typo.sans(12))
+                        .foregroundColor(Paper.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 10)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(Paper.muted)
+            }
+            .padding(.horizontal, 16).padding(.vertical, 13)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }

