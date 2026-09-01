@@ -7685,6 +7685,7 @@
       }
     },
     "Ready — not backed up yet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
