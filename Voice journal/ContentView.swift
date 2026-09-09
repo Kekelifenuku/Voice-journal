@@ -36,6 +36,11 @@ struct RootView: View {
                 EntitlementLoadingView()
             } else if purchases.isPro {
                 RootTabView(transcription: transcription, purchases: purchases)
+            } else if purchases.fetchFailed {
+                // Couldn't verify entitlement (offline / transient). Don't strand a paying user
+                // on the close-button-less paywall — offer Retry + Restore instead.
+                EntitlementRecoveryView(purchases: purchases)
+                    .transition(.opacity)
             } else {
                 PaywallSheet(purchases: purchases, displayCloseButton: false)
                     .transition(.opacity)
@@ -72,6 +77,53 @@ private struct EntitlementLoadingView: View {
     }
 }
 
+/// Shown when the entitlement check couldn't reach the store (offline / transient error), so a
+/// subscriber isn't locked out on the close-button-less paywall. Retry re-checks; Restore recovers.
+private struct EntitlementRecoveryView: View {
+    @ObservedObject var purchases: PurchaseManager
+    @State private var busy = false
+
+    var body: some View {
+        ZStack {
+            Paper.bg.ignoresSafeArea()
+            VStack(spacing: 18) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.system(size: 42, weight: .light))
+                    .foregroundColor(Paper.terra.opacity(0.7))
+                    .accessibilityHidden(true)
+                Text(L("Couldn't verify your access"))
+                    .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
+                    .multilineTextAlignment(.center)
+                Text(L("Check your connection and try again. If you've subscribed before, restore your purchase."))
+                    .font(Typo.serifItalic(16)).foregroundColor(Paper.ink3)
+                    .multilineTextAlignment(.center).lineSpacing(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 8)
+
+                VStack(spacing: 12) {
+                    PrimaryCapsuleButton(title: "Try again", icon: "arrow.clockwise") {
+                        guard !busy else { return }
+                        busy = true
+                        Task { await purchases.refresh(); busy = false }
+                    }
+                    Button {
+                        guard !busy else { return }
+                        busy = true
+                        Task { await purchases.restore(); busy = false }
+                    } label: {
+                        Text(L("Restore purchase"))
+                            .font(Typo.sans(15, .semibold)).foregroundColor(Paper.terra)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 6)
+                .opacity(busy ? 0.5 : 1)
+            }
+            .padding(.horizontal, 40)
+        }
+    }
+}
+
 struct RootTabView: View {
     @ObservedObject var transcription: TranscriptionManager
     @ObservedObject var purchases: PurchaseManager
@@ -88,11 +140,14 @@ struct RootTabView: View {
     private func goToCapture() {
         withAnimation(.easeInOut(duration: 0.25)) { tab = 0 }
     }
+    private func goToJournal() {
+        withAnimation(.easeInOut(duration: 0.3)) { tab = 1 }
+    }
 
     var body: some View {
         TabView(selection: $tab) {
             CaptureView(engine: engine, store: store, settings: settings,
-                        transcription: transcription)
+                        transcription: transcription, goToJournal: goToJournal)
                 .tag(0)
                 .tabItem { Label(L("Capture"), systemImage: "mic.fill") }
 
@@ -127,7 +182,8 @@ struct RootTabView: View {
         }
         .id(appLang)
         .tint(Paper.terra)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)   // scale text, but cap the extremes
+        .onAppear { store.audioEngine = engine }   // so deletes can stop playback of the removed entry
+        .dynamicTypeSize(...DynamicTypeSize.accessibility3)   // scale text, but cap the extremes
         .overlay(alignment: .bottom) {
             if store.pendingDelete != nil {
                 UndoToast(title: "Entry deleted") { store.undoDelete() }

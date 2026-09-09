@@ -183,7 +183,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				52A8005000000000000000A1 /* XCRemoteSwiftPackageReference "WhisperKit" */,
-				52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios" */,
+				52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 52A8003A2F60F4D900EBC9D0 /* Products */;
@@ -293,7 +293,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -351,7 +351,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.6;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -447,7 +447,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "kekeli.Voice-journal.PromptWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -473,7 +473,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3;
 				PRODUCT_BUNDLE_IDENTIFIER = "kekeli.Voice-journal.PromptWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -521,16 +521,16 @@
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/argmaxinc/WhisperKit.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.0;
+				kind = exactVersion;
+				version = 0.18.0;
 			};
 		};
-		52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios" */ = {
+		52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */ = {
 			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/RevenueCat/purchases-ios.git";
+			repositoryURL = "https://github.com/RevenueCat/purchases-ios-spm.git";
 			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 5.83.0;
+				kind = exactVersion;
+				version = 5.83.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -543,12 +543,12 @@
 		};
 		52A8007000000000000000B3 /* RevenueCat */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			package = 52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 			productName = RevenueCat;
 		};
 		52A8007000000000000000B4 /* RevenueCatUI */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios" */;
+			package = 52A8007000000000000000A2 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 			productName = RevenueCatUI;
 		};
 /* End XCSwiftPackageProductDependency section */

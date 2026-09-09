@@ -86,6 +86,7 @@ final class MotivationService: ObservableObject {
 
 struct MotivationCard: View {
     @ObservedObject var service: MotivationService
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -101,8 +102,8 @@ struct MotivationCard: View {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 13, weight: .semibold))
                         .foregroundColor(Paper.terra)
-                        .rotationEffect(.degrees(service.loading ? 360 : 0))
-                        .animation(service.loading ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
+                        .rotationEffect(.degrees(service.loading && !reduceMotion ? 360 : 0))
+                        .animation(service.loading && !reduceMotion ? .linear(duration: 0.8).repeatForever(autoreverses: false) : .default,
                                    value: service.loading)
                 }
                 .buttonStyle(.plain)

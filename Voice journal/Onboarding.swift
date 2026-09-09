@@ -3,13 +3,13 @@
 
 import SwiftUI
 import Combine
+import AVFoundation
 
 private struct OnbPage {
     let eyebrow: String
     let title: String
     let accentWord: String
     let body: String
-    let hero: AnyView
 }
 
 struct OnboardingView: View {
@@ -18,37 +18,56 @@ struct OnboardingView: View {
 
     @State private var page = 0
     @State private var phase: Double = 0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let clock = Timer.publish(every: 0.033, on: .main, in: .common).autoconnect()
 
     private var modelReady: Bool { transcription.state == .ready }
     private var modelBusy: Bool  { transcription.state.isBusy || transcription.state == .idle }
 
+    // Text-only metadata. Heroes are built one-at-a-time in `hero(for:)` so we don't allocate
+    // all six (each formerly an AnyView) on every 30fps animation tick.
     private var pages: [OnbPage] {
         [
             OnbPage(eyebrow: "Voice Journal", title: "Speak your", accentWord: "mind.",
-                    body: "No typing, no formatting. Press once and talk — your thoughts, exactly as they arrive.",
-                    hero: AnyView(MicHero(phase: phase))),
+                    body: "No typing, no formatting. Press once and talk — your thoughts, exactly as they arrive."),
             OnbPage(eyebrow: "On device", title: "Every word,", accentWord: "transcribed.",
-                    body: "Your voice becomes searchable text, right on your phone. Nothing is uploaded, ever.",
-                    hero: AnyView(WaveHero(phase: phase))),
-            OnbPage(eyebrow: "Reflect", title: "See your", accentWord: "patterns.",
-                    body: "A quiet summary of each entry, your moods over time, and the themes that keep returning.",
-                    hero: AnyView(SummaryHero(phase: phase))),
-            OnbPage(eyebrow: "Every day", title: "A prompt,", accentWord: "a nudge.",
-                    body: "Each day brings a fresh reflection prompt and a little motivation to begin.",
-                    hero: AnyView(PromptHero(phase: phase))),
+                    body: "Your voice becomes searchable text, right on your phone. Nothing is uploaded, ever."),
+            OnbPage(eyebrow: "How it felt", title: "Name the", accentWord: "feeling.",
+                    body: "Tag each moment — calm, joyful, tense — with a single tap, and let the mood color your journal."),
+            OnbPage(eyebrow: "Insights", title: "Watch it", accentWord: "unfold.",
+                    body: "Your emotional weather, your moods over time, and the rhythm of your days — patterns you can actually feel."),
             OnbPage(eyebrow: "Only yours", title: "Private by", accentWord: "design.",
-                    body: "Everything stays on your device. No cloud, no account — no one else can read your journal.",
-                    hero: AnyView(LockHero(phase: phase))),
+                    body: "Everything stays on your device. No cloud, no account — no one else can read your journal."),
             OnbPage(eyebrow: "Almost there", title: "Getting", accentWord: "ready.",
                     body: modelReady
                         ? "On-device transcription is ready. Your first entry will turn into text the moment you finish."
-                        : "We're setting up on-device transcription so your very first entry is ready to go.",
-                    hero: AnyView(ModelHero(phase: phase, ready: modelReady, busy: modelBusy)))
+                        : "We're setting up on-device transcription so your very first entry is ready to go.")
         ]
     }
 
+    @ViewBuilder
+    private func hero(for index: Int) -> some View {
+        switch index {
+        case 0: MicHero(phase: phase)
+        case 1: WaveHero(phase: phase)
+        case 2: MoodHero(phase: phase)
+        case 3: InsightsHero(phase: phase)
+        case 4: LockHero(phase: phase)
+        default: ModelHero(phase: phase, ready: modelReady, busy: modelBusy)
+        }
+    }
+
     private var isLast: Bool { page == pages.count - 1 }
+
+    /// Index of the privacy page — where we prime the mic permission so the OS prompt lands with context.
+    private var privacyPageIndex: Int { pages.firstIndex { $0.eyebrow == "Only yours" } ?? -1 }
+
+    /// Ask for microphone access once, in context, right after the privacy page. The result doesn't
+    /// gate onboarding — recording itself handles denial (AudioEngine.micDenied → Capture alert).
+    private func primeMicIfNeeded() {
+        guard AVAudioApplication.shared.recordPermission == .undetermined else { return }
+        AVAudioApplication.requestRecordPermission { _ in }
+    }
 
     var body: some View {
         let p = pages[page]
@@ -74,7 +93,7 @@ struct OnboardingView: View {
 
                 Spacer()
 
-                p.hero
+                hero(for: page)
                     .frame(height: 240)
                     .id(page)
                     .transition(.opacity.combined(with: .scale(scale: 0.9)))
@@ -82,12 +101,12 @@ struct OnboardingView: View {
                 Spacer()
 
                 VStack(alignment: .leading, spacing: 16) {
-                    Text(p.eyebrow).eyebrow()
+                    Text(L(p.eyebrow)).eyebrow()
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(p.title).font(Typo.sans(38, .bold)).foregroundColor(Paper.ink)
-                        Text(p.accentWord).font(Typo.serifItalic(38, .medium)).foregroundColor(Paper.terra)
+                        Text(L(p.title)).font(Typo.sans(38, .bold)).foregroundColor(Paper.ink)
+                        Text(L(p.accentWord)).font(Typo.serifItalic(38, .medium)).foregroundColor(Paper.terra)
                     }
-                    Text(p.body)
+                    Text(L(p.body))
                         .font(Typo.sans(16))
                         .foregroundColor(Paper.ink2)
                         .lineSpacing(5)
@@ -104,6 +123,7 @@ struct OnboardingView: View {
                 Button {
                     HX.press()
                     if !isLast {
+                        if page == privacyPageIndex { primeMicIfNeeded() }
                         withAnimation(.spring(response: 0.45, dampingFraction: 0.85)) { page += 1 }
                     } else { HX.ok(); onComplete() }
                 } label: {
@@ -120,12 +140,12 @@ struct OnboardingView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                     .shadow(color: Paper.terra.opacity(0.3), radius: 14, y: 6)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PressableButtonStyle())
                 .padding(.horizontal, 28)
                 .padding(.bottom, 40)
             }
         }
-        .onReceive(clock) { _ in phase += 0.03 }
+        .onReceive(clock) { _ in if !reduceMotion { phase += 0.03 } }
         .onAppear {
             // Preload the on-device model now, while the user reads the onboarding.
             if transcription.isSupported { transcription.prepare() }
@@ -134,6 +154,86 @@ struct OnboardingView: View {
 }
 
 // MARK: - Heroes
+
+/// Mood chips (matching the picker) gently bobbing — the "name the feeling" illustration.
+private struct MoodHero: View {
+    let phase: Double
+    private let moods: [Mood] = [.serene, .joyful, .pensive, .tense]
+    var body: some View {
+        VStack(spacing: 16) {
+            HStack(spacing: 16) { chip(moods[0], 0); chip(moods[1], 1) }
+            HStack(spacing: 16) { chip(moods[2], 2); chip(moods[3], 3) }
+        }
+    }
+    private func chip(_ m: Mood, _ i: Int) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: m.glyph).font(.system(size: 15, weight: .semibold))
+            Text(m.label).font(Typo.sans(15, .semibold))
+        }
+        .foregroundColor(Paper.ink)
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(m.color.opacity(0.22))
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(m.color.opacity(0.4), lineWidth: 1))
+        .shadow(color: m.color.opacity(0.18), radius: 8, y: 4)
+        .offset(y: sin(phase * 1.1 + Double(i) * 0.9) * 5)
+    }
+}
+
+/// An animated emotional-trend line + mood dots — the "insights" illustration.
+private struct InsightsHero: View {
+    let phase: Double
+    private let dotColors: [Color] = [
+        Mood.serene.color, Mood.joyful.color, Mood.pensive.color,
+        Mood.tense.color, Mood.grateful.color, Mood.serene.color, Mood.joyful.color
+    ]
+    var body: some View {
+        VStack(spacing: 18) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(Paper.cardAlt)
+                    .frame(width: 264, height: 150)
+                    .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(Paper.hair, lineWidth: 1))
+                    .shadow(color: Color(0x2B2620, opacity: 0.08), radius: 16, y: 8)
+                trendChart.frame(width: 216, height: 92)
+            }
+            HStack(spacing: 7) {
+                ForEach(Array(dotColors.enumerated()), id: \.offset) { i, c in
+                    Circle().fill(c).frame(width: 12, height: 12)
+                        .scaleEffect(0.85 + (sin(phase + Double(i) * 0.7) * 0.5 + 0.5) * 0.3)
+                }
+            }
+        }
+    }
+    private var trendChart: some View {
+        GeometryReader { g in
+            let n = 7
+            let w = g.size.width, h = g.size.height
+            let xs = (0..<n).map { CGFloat($0) / CGFloat(n - 1) * w }
+            let ys = (0..<n).map { i -> CGFloat in
+                let t = Double(i) / Double(n - 1)
+                let v = sin(phase * 0.8 + t * .pi * 1.6) * 0.5 + 0.5    // 0…1
+                return h * 0.1 + (1 - CGFloat(v)) * h * 0.8
+            }
+            ZStack {
+                Path { p in
+                    p.move(to: CGPoint(x: xs[0], y: h))
+                    for i in 0..<n { p.addLine(to: CGPoint(x: xs[i], y: ys[i])) }
+                    p.addLine(to: CGPoint(x: xs[n - 1], y: h)); p.closeSubpath()
+                }
+                .fill(LinearGradient(colors: [Paper.terra.opacity(0.28), Paper.terra.opacity(0.02)],
+                                     startPoint: .top, endPoint: .bottom))
+                Path { p in
+                    p.move(to: CGPoint(x: xs[0], y: ys[0]))
+                    for i in 1..<n { p.addLine(to: CGPoint(x: xs[i], y: ys[i])) }
+                }
+                .stroke(Paper.terra, style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                Circle().fill(Paper.terra).frame(width: 8, height: 8)
+                    .position(x: xs[n - 1], y: ys[n - 1])
+            }
+        }
+    }
+}
 
 private struct MicHero: View {
     let phase: Double
@@ -166,59 +266,6 @@ private struct WaveHero: View {
             Image(systemName: "arrow.down").font(.system(size: 12, weight: .bold)).foregroundColor(Paper.ink3)
             Text(L("\u{201C}I've been trying to slow down\u{2026}\u{201D}"))
                 .font(Typo.serifItalic(17)).foregroundColor(Paper.ink2)
-        }
-    }
-}
-
-private struct SummaryHero: View {
-    let phase: Double
-    private let swatches: [Color] = [
-        Color(0xD9C4A8), Color(0xC7906B), Color(0xE0D3BE), Color(0xA9694B),
-        Color(0xCBA36A), Color(0xE0D3BE), Color(0xB98A66)
-    ]
-    var body: some View {
-        VStack(spacing: 18) {
-            HStack(spacing: 8) {
-                ForEach(Array(swatches.enumerated()), id: \.offset) { i, c in
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(c)
-                        .frame(width: 26, height: 40 + sin(phase + Double(i) * 0.6) * 5)
-                }
-            }
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: "sparkles").font(.system(size: 11, weight: .semibold)).foregroundColor(Paper.terra)
-                    Text(L("Summary")).eyebrow()
-                }
-                Text(L("A calm week, with room to breathe."))
-                    .font(Typo.sans(15)).foregroundColor(Paper.ink)
-            }
-            .padding(16)
-            .frame(width: 260, alignment: .leading)
-            .paperCard(18, fill: Paper.cardAlt)
-        }
-    }
-}
-
-private struct PromptHero: View {
-    let phase: Double
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Paper.cardAlt)
-                .frame(width: 250, height: 170)
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).stroke(Paper.hair, lineWidth: 1))
-                .rotationEffect(.degrees(sin(phase * 0.6) * 2))
-                .shadow(color: Color(0x2B2620, opacity: 0.08), radius: 16, y: 8)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 5) {
-                    Image(systemName: "text.quote").font(.system(size: 11, weight: .semibold))
-                    Text(L("Today's prompt")).eyebrow()
-                }
-                Text(L("Where did you feel most like yourself today?"))
-                    .font(Typo.serifItalic(20)).foregroundColor(Paper.ink).lineSpacing(4)
-            }
-            .frame(width: 210, alignment: .leading)
         }
     }
 }

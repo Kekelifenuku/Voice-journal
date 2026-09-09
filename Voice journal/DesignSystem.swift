@@ -62,6 +62,22 @@ enum Paper {
     // On-espresso (light text inside the dark pill — constant)
     static let onDark  = Color(0xF6F1E8)
     static let onDark2 = Color(0xF6F1E8, opacity: 0.55)
+
+    /// Placeholder / hint text — darker than `muted` so it clears WCAG AA on the page.
+    /// (`muted` stays reserved for non-text fills where its low contrast is fine.)
+    static let placeholder = Color(light: 0x8A7F6E, dark: 0x8F857A)
+
+    /// Destructive intent — adaptive so it reads on the warm-dark ground too.
+    static let danger = Color(light: 0xB03A2E, dark: 0xE0715C)
+}
+
+// MARK: - Motion tokens
+
+/// Named springs/curves so motion is consistent instead of scattered magic numbers.
+enum Motion {
+    static let snappy = Animation.spring(response: 0.35, dampingFraction: 0.82)
+    static let smooth = Animation.spring(response: 0.45, dampingFraction: 0.85)
+    static let gentle = Animation.easeInOut(duration: 0.25)
 }
 
 // MARK: - Typography
@@ -144,6 +160,8 @@ extension View {
 struct CircleIconButton: View {
     let system: String
     var size: CGFloat = 44
+    /// Localized VoiceOver label. Without it the control announces its raw SF Symbol name.
+    var a11yLabel: String? = nil
     var action: () -> Void
     var body: some View {
         Button(action: action) {
@@ -156,6 +174,80 @@ struct CircleIconButton: View {
                 .overlay(Circle().stroke(Paper.hair, lineWidth: 1))
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(a11yLabel.map { Text(L($0)) } ?? Text(verbatim: system))
+    }
+}
+
+// MARK: - Pressable button style (tactile feedback for primary controls)
+
+/// Gentle press feedback so large shadowed CTAs visibly react to touch-down
+/// (default `.plain` gives none). Respects Reduce Motion.
+struct PressableButtonStyle: ButtonStyle {
+    var scale: CGFloat = 0.97
+    func makeBody(configuration: Configuration) -> some View {
+        Pressable(configuration: configuration, scale: scale)
+    }
+    // Inner View so @Environment is reliably injected (a ButtonStyle itself isn't a View).
+    private struct Pressable: View {
+        let configuration: Configuration
+        let scale: CGFloat
+        @Environment(\.accessibilityReduceMotion) private var reduceMotion
+        var body: some View {
+            configuration.label
+                .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? scale : 1))
+                .opacity(configuration.isPressed ? 0.92 : 1)
+                .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+        }
+    }
+}
+
+// MARK: - Pro badge (shared)
+
+/// The small locked "PRO" pill, used by every upsell surface.
+struct ProBadge: View {
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
+            Text(L("PRO")).font(Typo.sans(9, .bold)).tracking(0.4)
+        }
+        .foregroundColor(Paper.white)
+        .padding(.horizontal, 6).padding(.vertical, 3)
+        .background(Paper.terra).clipShape(Capsule())
+        .accessibilityLabel(L("Pro feature"))
+    }
+}
+
+// MARK: - Stats row (shared by Insights + Settings)
+
+/// A single stat (big value over a small label).
+struct StatCell: View {
+    let value: String
+    let label: String
+    var body: some View {
+        VStack(spacing: 5) {
+            Text(value).font(Typo.sans(22, .bold)).foregroundColor(Paper.ink)
+            Text(L(label)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The three-up stat card (entries · recorded · streak). Each pair is (value, label).
+struct StatRow: View {
+    let stats: [(String, String)]
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(stats.enumerated()), id: \.offset) { i, s in
+                if i > 0 {
+                    Rectangle().fill(Paper.hair).frame(width: 1, height: 34)
+                }
+                StatCell(value: s.0, label: s.1)
+            }
+        }
+        .padding(.vertical, 20)
+        .frame(maxWidth: .infinity)
+        .paperCard(22)
     }
 }
 

@@ -4,7 +4,7 @@
 import SwiftUI
 import Combine
 import StoreKit
-import UserNotifications
+@preconcurrency import UserNotifications
 import UniformTypeIdentifiers
 
 // MARK: - Settings model
@@ -160,7 +160,7 @@ final class AppSettings: ObservableObject {
 /// So every user-facing string is resolved explicitly against the selected language's
 /// `.lproj` via `L(_:)`, and `RootTabView` carries `.id(appLang)` so the tree rebuilds
 /// (re-running `L`) the instant the language changes — no relaunch.
-enum AppLocale {
+nonisolated enum AppLocale {
     static var code: String { UserDefaults.standard.string(forKey: "s_applang") ?? "system" }
 
     static var locale: Locale {
@@ -177,24 +177,19 @@ enum AppLocale {
         }
     }
 
-    // Cache the resolved `.lproj` bundle so we don't re-create it on every `L(_:)` call.
-    private static var cached: (code: String, bundle: Bundle)?
-
     /// The `.lproj` bundle for the selected language (or `.main` for "system").
     static var bundle: Bundle {
         let c = code
         if c == "system" { return .main }
-        if let cached, cached.code == c { return cached.bundle }
         guard let path = Bundle.main.path(forResource: c, ofType: "lproj"),
               let b = Bundle(path: path) else { return .main }
-        cached = (c, b)
         return b
     }
 }
 
 /// Resolve a UI string against the currently selected app language. Works for both
 /// literal keys and runtime values; falls back to the key itself if untranslated.
-func L(_ key: String) -> String {
+nonisolated func L(_ key: String) -> String {
     AppLocale.bundle.localizedString(forKey: key, value: key, table: nil)
 }
 
@@ -227,20 +222,38 @@ struct SettingsView: View {
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 18) {
 
-                    // Stats card
-                    HStack(spacing: 0) {
-                        stat("\(store.entries.count)", "entries")
-                        vline
-                        stat(store.totalFormatted, "recorded")
-                        vline
-                        stat(store.streak == 0 ? "—" : "\(store.streak)", "day streak")
+                    // Header — matches the editorial masthead used by the other tabs.
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L("Voice Journal")).eyebrow()
+                        Text(L("Settings"))
+                            .font(Typo.sans(32, .bold))
+                            .foregroundColor(Paper.ink)
                     }
-                    .padding(.vertical, 20)
-                    .frame(maxWidth: .infinity)
-                    .paperCard(22)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    // Stats card
+                    StatRow(stats: [
+                        ("\(store.entries.count)", "entries"),
+                        (store.totalFormatted, "recorded"),
+                        (store.streak == 0 ? "—" : "\(store.streak)", "day streak")
+                    ])
 
                     // Membership
                     proCard
+
+                    // Restore + manage — a reachable restore path is required by App Review.
+                    settingsGroup("Membership") {
+                        linkRow("Restore purchases", "arrow.clockwise") {
+                            Task {
+                                await purchases.restore()
+                                alertMessage = purchases.isPro
+                                    ? L("Your purchases have been restored.")
+                                    : L("No purchases found to restore.")
+                            }
+                        }
+                        divider
+                        linkRow("Manage subscription", "creditcard") { openManageSubscriptions() }
+                    }
 
                     // Transcription
                     settingsGroup("Transcription") {
@@ -252,7 +265,7 @@ struct SettingsView: View {
                             transcription.reload()
                         }
                         divider
-                        pickerRow("Language", icon: "globe", selection: $settings.language,
+                        pickerRow("Spoken language", icon: "globe", selection: $settings.language,
                                   options: [("en", "English"), ("es", "Spanish"), ("fr", "French"),
                                             ("de", "German"), ("auto", "Auto-detect")]) {
                             transcription.reload()
@@ -401,7 +414,7 @@ struct SettingsView: View {
                             Text(L("Delete all entries")).font(Typo.sans(15, .medium))
                             Spacer()
                         }
-                        .foregroundColor(Color(0xB03A2E))
+                        .foregroundColor(Paper.danger)
                         .padding(.horizontal, 16).padding(.vertical, 15)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .paperCard(18)
@@ -414,8 +427,7 @@ struct SettingsView: View {
                 .padding(.top, 8)
             }
         }
-        .navigationTitle(L("Settings"))
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarHidden(true)
         .fileImporter(isPresented: $showFileImporter,
                       allowedContentTypes: [.zip],
                       allowsMultipleSelection: false) { result in
@@ -457,7 +469,7 @@ struct SettingsView: View {
                 }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L("Voice Journal Pro")).font(Typo.sans(15, .semibold)).foregroundColor(Paper.ink)
-                    Text(purchases.activePlan.map { "\($0) plan · thank you" } ?? "Active · thank you")
+                    Text(purchases.activePlan.map { String(localized: "\($0) plan · thank you", bundle: AppLocale.bundle) } ?? L("Active · thank you"))
                         .font(Typo.sans(12)).foregroundColor(Paper.ink3)
                 }
                 Spacer()
@@ -492,7 +504,7 @@ struct SettingsView: View {
     // MARK: Data handlers
 
     private func exportMarkdown() {
-        guard !store.entries.isEmpty else { alertMessage = "No entries to export yet."; return }
+        guard !store.entries.isEmpty else { alertMessage = L("No entries to export yet."); return }
         HX.tap()
         if let url = try? Exporter.tempFile(Exporter.allMarkdown(store.entries), name: "Voice Journal.md") {
             shareItems = [url]; showShare = true
@@ -552,6 +564,12 @@ struct SettingsView: View {
         }
     }
 
+    /// Open the system Manage Subscriptions sheet (Guideline 3.1.2).
+    private func openManageSubscriptions() {
+        guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene else { return }
+        Task { try? await AppStore.showManageSubscriptions(in: scene) }
+    }
+
     private var modelStatusText: String {
         switch transcription.state {
         case .idle:         return String(localized: "Ready to load", bundle: AppLocale.bundle)
@@ -565,14 +583,6 @@ struct SettingsView: View {
 
     // MARK: pieces
 
-    private func stat(_ v: String, _ l: String) -> some View {
-        VStack(spacing: 5) {
-            Text(v).font(Typo.sans(22, .bold)).foregroundColor(Paper.ink)
-            Text(L(l)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
-        }
-        .frame(maxWidth: .infinity)
-    }
-    private var vline: some View { Rectangle().fill(Paper.hair).frame(width: 1, height: 34) }
     private var divider: some View { Rectangle().fill(Paper.hair).frame(height: 1).padding(.leading, 48) }
 
     private func settingsGroup<C: View>(_ title: String, @ViewBuilder _ content: () -> C) -> some View {

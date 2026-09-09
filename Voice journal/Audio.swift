@@ -19,6 +19,11 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
     @Published var playTime: TimeInterval = 0
     @Published var playDuration: TimeInterval = 0
 
+    /// Set when the mic permission is denied — CaptureView observes it to guide the user to Settings.
+    @Published var micDenied = false
+    /// Set when recording couldn't start despite permission (mic busy / no input).
+    @Published var recordStartFailed = false
+
     private var recorder:   AVAudioRecorder?
     private var player:     AVAudioPlayer?
     private var recClock:   Timer?
@@ -30,6 +35,38 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
 
     private var session:    RecordingSession?     // single-engine path, used when live transcription is on
     private var usingEngine = false
+    private var wasInterrupted = false            // recording was paused by a system interruption
+
+    override init() {
+        super.init()
+        // Pause/resume recording around system interruptions (calls, Siri, alarms) so audio isn't
+        // truncated while the clock keeps running — otherwise the saved entry reports dead time.
+        NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification, object: nil, queue: .main
+        ) { [weak self] note in
+            Task { @MainActor in self?.handleInterruption(note) }
+        }
+    }
+
+    private func handleInterruption(_ note: Notification) {
+        guard let info = note.userInfo,
+              let raw = info[AVAudioSessionInterruptionTypeKey] as? UInt,
+              let type = AVAudioSession.InterruptionType(rawValue: raw) else { return }
+        switch type {
+        case .began:
+            if state == .recording { pauseRecording(); wasInterrupted = true }
+        case .ended:
+            guard wasInterrupted else { return }
+            wasInterrupted = false
+            let opts = AVAudioSession.InterruptionOptions(
+                rawValue: info[AVAudioSessionInterruptionOptionKey] as? UInt ?? 0)
+            // Resume only if the system says we may; otherwise stay paused (clock frozen) so the
+            // user can resume or finish — the recording keeps the audio captured before the call.
+            if opts.contains(.shouldResume), state == .paused { resumeRecording() }
+        @unknown default:
+            break
+        }
+    }
 
     /// (fileName, duration) once a recording finishes.
     var onRecordFinish: ((String, TimeInterval) -> Void)?
@@ -42,11 +79,16 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
 
     func requestAndRecord() {
         AVAudioApplication.requestRecordPermission { [weak self] ok in
-            Task { @MainActor in if ok { self?.startRecording() } }
+            Task { @MainActor in
+                guard let self else { return }
+                if ok { self.startRecording() }
+                else { self.micDenied = true }
+            }
         }
     }
 
     private func startRecording() {
+        if state == .playing { stopPlaying() }
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try? s.setActive(true)
@@ -55,7 +97,11 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
         // Live on → single AVAudioEngine (mic → file + 16 kHz feed). Otherwise the proven recorder.
         // If the engine path can't start (e.g. no input), fall back so recording still works.
         let started = (wantsLive && startEngine(name: name)) || startRecorder(name: name)
-        guard started else { state = .idle; pendingFile = nil; return }
+        guard started else {
+            Store.removeAudio(named: name)
+            state = .idle; pendingFile = nil; recordStartFailed = true
+            return
+        }
 
         recStart = Date(); elapsed = 0; pausedAt = 0; state = .recording
         startClock()
@@ -65,7 +111,7 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
         guard let sess = try? RecordingSession(url: Self.docURL(name)) else { return false }
         sess.onLevel   = { [weak self] lvl in Task { @MainActor in self?.applyLevel(lvl) } }
         sess.onSamples = { [weak self] samples in Task { @MainActor in self?.onLiveSamples?(samples) } }
-        do { try sess.start() } catch { return false }
+        do { try sess.start() } catch { sess.stop(); return false }
         session = sess; usingEngine = true
         return true
     }
@@ -78,7 +124,9 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
             AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
         ]
         guard let r = try? AVAudioRecorder(url: Self.docURL(name), settings: cfg) else { return false }
-        recorder = r; r.delegate = self; r.isMeteringEnabled = true; r.record()
+        r.delegate = self; r.isMeteringEnabled = true
+        guard r.prepareToRecord(), r.record() else { return false }
+        recorder = r
         usingEngine = false
         startMeterTimer()
         return true
@@ -102,6 +150,7 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
     }
 
     func pauseRecording() {
+        guard state == .recording else { return }
         if usingEngine { session?.pause() } else { recorder?.pause() }
         pausedAt += Date().timeIntervalSince(recStart ?? Date())
         recClock?.invalidate(); meterTimer?.invalidate()
@@ -109,20 +158,29 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
     }
 
     func resumeRecording() {
-        if usingEngine { try? session?.resume() }
-        else { recorder?.record(); startMeterTimer() }
+        guard state == .paused else { return }
+        if usingEngine {
+            do { try session?.resume() }
+            catch { recordStartFailed = true; return }
+        } else {
+            guard recorder?.record() == true else { recordStartFailed = true; return }
+            startMeterTimer()
+        }
         recStart = Date(); state = .recording
         startClock()
     }
 
     func stopRecording() {
+        guard state == .recording || state == .paused else { return }
+        let duration = state == .recording
+            ? pausedAt + max(0, Date().timeIntervalSince(recStart ?? Date()))
+            : pausedAt
         if usingEngine { session?.stop(); session = nil; usingEngine = false }
-        else { recorder?.stop() }
+        else { recorder?.stop(); recorder = nil }
         recClock?.invalidate(); meterTimer?.invalidate()
-        let dur = elapsed
         state = .idle; elapsed = 0; pausedAt = 0; level = 0
         bars = Array(repeating: 0.04, count: bars.count)
-        if let f = pendingFile { onRecordFinish?(f, dur) }
+        if let f = pendingFile { onRecordFinish?(f, duration) }
         pendingFile = nil
     }
 
@@ -142,14 +200,15 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
     // MARK: Playback
 
     func play(entry: VoiceEntry, speed: Float? = nil) {
-        player?.stop(); playTimer?.invalidate()
+        guard state != .recording, state != .paused else { return }
+        stopPlaying()
         let url = Self.docURL(entry.fileName)
         guard let p = try? AVAudioPlayer(contentsOf: url) else { return }
         let s = AVAudioSession.sharedInstance()
         try? s.setCategory(.playback); try? s.setActive(true)
         let spd = speed ?? playSpeed
-        player = p; player?.delegate = self; player?.enableRate = true; player?.rate = spd
-        player?.play()
+        player = p; p.delegate = self; p.enableRate = true; p.rate = spd
+        guard p.play() else { player = nil; return }
         state = .playing; playingID = entry.id
         playDuration = p.duration; playSpeed = spd; playProgress = 0; playTime = 0
         playTimer = Timer.scheduledTimer(withTimeInterval: 0.04, repeats: true) { [weak self] _ in
@@ -168,8 +227,9 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
 
     func seek(to fraction: Double) {
         guard let p = player else { return }
-        p.currentTime = p.duration * fraction
-        playTime = p.currentTime; playProgress = fraction
+        let clamped = min(max(0, fraction), 1)
+        p.currentTime = p.duration * clamped
+        playTime = p.currentTime; playProgress = clamped
     }
     func skip(seconds: Double) {
         guard let p = player else { return }
@@ -185,7 +245,8 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
     }
     func stopPlaying() {
         player?.stop(); playTimer?.invalidate()
-        state = .idle; playingID = nil; playProgress = 0; playTime = 0
+        player = nil; playingID = nil; playProgress = 0; playTime = 0; playDuration = 0
+        if state == .playing { state = .idle }
     }
 
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
@@ -194,7 +255,7 @@ final class AudioEngine: NSObject, ObservableObject, AVAudioRecorderDelegate, AV
 
     // MARK: Helpers
     static func docURL(_ n: String) -> URL {
-        FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent(n)
+        Store.audioURL(n)
     }
     func fmt(_ t: TimeInterval) -> String { String(format: "%d:%02d", Int(t) / 60, Int(t) % 60) }
     func elapsedFormatted() -> String { fmt(elapsed) }
@@ -310,35 +371,35 @@ enum WaveformExtractor {
         guard let file = try? AVAudioFile(forReading: url) else { return [] }
         let format = file.processingFormat
         let total = Int(file.length)
-        guard total > 0,
-              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(total)),
-              (try? file.read(into: buffer)) != nil,
-              let channels = buffer.floatChannelData
-        else { return [] }
+        guard buckets > 0, total > 0 else { return [] }
 
-        let frames = Int(buffer.frameLength)
-        guard frames > 0 else { return [] }
+        // Read a fixed-size window instead of allocating the full decoded recording. A long AAC
+        // journal can expand to hundreds of MB as PCM and previously risked terminating the app.
+        let chunkFrames: AVAudioFrameCount = 8_192
+        guard let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: chunkFrames) else { return [] }
         let channelCount = Int(format.channelCount)
-        let per = max(1, frames / buckets)
-
-        var peaks: [Double] = []
-        peaks.reserveCapacity(buckets)
+        var peaks = Array(repeating: 0.0, count: buckets)
         var maxPeak = 0.0
-        var i = 0
-        while i < frames {
-            let end = min(i + per, frames)
-            var peak: Float = 0
-            var j = i
-            while j < end {
-                var s: Float = 0
-                for c in 0..<channelCount { s = max(s, abs(channels[c][j])) }
-                if s > peak { peak = s }
-                j += 1
+        var processed = 0
+
+        while processed < total {
+            let requested = AVAudioFrameCount(min(Int(chunkFrames), total - processed))
+            do { try file.read(into: buffer, frameCount: requested) }
+            catch { return [] }
+            let frameCount = Int(buffer.frameLength)
+            guard frameCount > 0, let channels = buffer.floatChannelData else { break }
+
+            for frame in 0..<frameCount {
+                var sample: Float = 0
+                for channel in 0..<channelCount {
+                    sample = max(sample, abs(channels[channel][frame]))
+                }
+                let bucket = min(buckets - 1, (processed + frame) * buckets / total)
+                let value = Double(sample)
+                if value > peaks[bucket] { peaks[bucket] = value }
+                if value > maxPeak { maxPeak = value }
             }
-            let v = Double(peak)
-            peaks.append(v)
-            if v > maxPeak { maxPeak = v }
-            i = end
+            processed += frameCount
         }
         guard maxPeak > 0 else { return [] }
         // Normalize, then apply a gentle curve so quiet detail stays visible.

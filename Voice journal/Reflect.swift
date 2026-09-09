@@ -20,10 +20,13 @@ struct ReflectView: View {
     @State private var editingTranscript = false
     @State private var transcriptDraft = ""
     @State private var showShare = false
+    /// Cached so Similarity isn't recomputed over the whole store on every playback tick.
+    @State private var similarMatches: [VoiceEntry] = []
     @FocusState private var noteFocused: Bool
 
     private var entry: VoiceEntry? { store.entries.first { $0.id == entryID } }
     private var isWorking: Bool { transcription.working.contains(entryID) }
+    private var isFailed: Bool { transcription.failedEntries.contains(entryID) }
 
     var body: some View {
         ZStack {
@@ -47,7 +50,7 @@ struct ReflectView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(entry.date.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(AppLocale.locale)))
                         .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink3)
-                    Text(entry.title)
+                    Text(L(entry.title))
                         .font(Typo.sans(28, .bold)).foregroundColor(Paper.ink)
                         .fixedSize(horizontal: false, vertical: true)
                     Text("\(entry.timeShort) · \(entry.durationLong)")
@@ -104,6 +107,13 @@ struct ReflectView: View {
             if entry.transcript.isEmpty && settings.autoTranscribe && transcription.isSupported {
                 transcription.transcribe(entry, store: store)
             }
+            similarMatches = Similarity.similar(to: entry, in: store.entries, limit: 3)
+        }
+        .onChange(of: store.entries) { _, _ in
+            // Recompute when entries actually change (e.g. transcription finished), not on playback ticks.
+            if let e = self.entry {
+                similarMatches = Similarity.similar(to: e, in: store.entries, limit: 3)
+            }
         }
     }
 
@@ -123,7 +133,10 @@ struct ReflectView: View {
                         .frame(width: 44, height: 44)
                         .background(Paper.card).clipShape(Circle())
                         .overlay(Circle().stroke(Paper.hair, lineWidth: 1))
-                }.buttonStyle(.plain)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L(entry.isFavorite ? "Remove from favorites" : "Add to favorites"))
+                .accessibilityAddTraits(entry.isFavorite ? [.isSelected] : [])
 
                 Menu {
                     Button { renameText = entry.title; showRename = true } label: {
@@ -146,6 +159,7 @@ struct ReflectView: View {
                         .background(Paper.card).clipShape(Circle())
                         .overlay(Circle().stroke(Paper.hair, lineWidth: 1))
                 }
+                .accessibilityLabel(L("More options"))
             }
         }
         .padding(.horizontal, 20)
@@ -226,6 +240,25 @@ struct ReflectView: View {
                         .font(Typo.serifItalic(15)).foregroundColor(Paper.ink3)
                 }
                 .padding(.vertical, 8)
+            } else if isFailed {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L("Transcription didn't finish. Check your connection and try again."))
+                        .font(Typo.serifItalic(15)).foregroundColor(Paper.ink3)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Button {
+                        HX.tap(); transcription.reload(); transcription.transcribe(entry, store: store, force: true)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "arrow.clockwise").font(.system(size: 14, weight: .semibold))
+                            Text(L("Try again")).font(Typo.sans(15, .semibold))
+                        }
+                        .foregroundColor(Paper.terra)
+                        .padding(.horizontal, 18).padding(.vertical, 12)
+                        .background(Paper.terra.opacity(0.12))
+                        .clipShape(Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
             } else if transcription.isSupported {
                 Button {
                     HX.tap(); transcription.transcribe(entry, store: store, force: true)
@@ -313,7 +346,7 @@ struct ReflectView: View {
             } else {
                 Text(entry.note.isEmpty ? String(localized: "Add your own reflection…", bundle: AppLocale.bundle) : entry.note)
                     .font(Typo.sans(15))
-                    .foregroundColor(entry.note.isEmpty ? Paper.muted : Paper.ink2)
+                    .foregroundColor(entry.note.isEmpty ? Paper.placeholder : Paper.ink2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .lineSpacing(4)
             }
@@ -324,27 +357,20 @@ struct ReflectView: View {
 
     @ViewBuilder
     private func similarSection(_ entry: VoiceEntry) -> some View {
-        let matches = Similarity.similar(to: entry, in: store.entries, limit: 3)
+        let matches = similarMatches
         // Free users see the pitch even without matches (aspirational); Pro users only see it if there's something to show.
         if !matches.isEmpty || !isPro {
             VStack(alignment: .leading, spacing: 12) {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.triangle.branch").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
                     Text(L("Similar entries")).eyebrow()
-                    if !isPro {
-                        HStack(spacing: 3) {
-                            Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
-                            Text(L("PRO")).font(Typo.sans(9, .bold)).tracking(0.4)
-                        }
-                        .foregroundColor(Paper.white)
-                        .padding(.horizontal, 6).padding(.vertical, 3)
-                        .background(Paper.terra).clipShape(Capsule())
-                    }
+                    if !isPro { ProBadge() }
                     Spacer()
                 }
 
                 if isPro {
                     ForEach(matches) { m in
+                        let shared = Similarity.sharedThemes(entry, m)
                         NavigationLink(value: m) {
                             HStack(spacing: 12) {
                                 VStack(alignment: .leading, spacing: 3) {
@@ -353,6 +379,15 @@ struct ReflectView: View {
                                     Text(m.preview)
                                         .font(Typo.serifItalic(15)).foregroundColor(Paper.ink2)
                                         .lineLimit(2).multilineTextAlignment(.leading)
+                                    if !shared.isEmpty {
+                                        HStack(spacing: 4) {
+                                            Image(systemName: "link").font(.system(size: 9, weight: .semibold))
+                                            Text(shared.prefix(2).joined(separator: ", "))
+                                                .font(Typo.sans(11, .medium))
+                                        }
+                                        .foregroundColor(Paper.terra)
+                                        .accessibilityLabel(String(localized: "Shared themes: \(shared.prefix(2).joined(separator: ", "))", bundle: AppLocale.bundle))
+                                    }
                                 }
                                 Spacer()
                                 Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.muted)

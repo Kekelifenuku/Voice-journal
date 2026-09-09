@@ -88,9 +88,9 @@ struct FavoritesView: View {
                 .accessibilityHidden(true)
             Text(L("No favorites yet"))
                 .font(Typo.sans(19, .semibold)).foregroundColor(Paper.ink)
-            Text(store.entries.isEmpty
+            Text(L(store.entries.isEmpty
                  ? "Record an entry, then tap the\nheart to keep it here."
-                 : "Tap the heart on any entry\nto keep it here.")
+                 : "Tap the heart on any entry\nto keep it here."))
                 .font(Typo.serifItalic(16))
                 .foregroundColor(Paper.ink3)
                 .multilineTextAlignment(.center)

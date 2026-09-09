@@ -50,6 +50,19 @@ enum Mood: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Emotional valence (-1…+1) driving the mood-based insights. `nil` for `.none` (untagged).
+    nonisolated var valence: Double? {
+        switch self {
+        case .none:     return nil
+        case .joyful:   return 1.0
+        case .grateful: return 0.9
+        case .serene:   return 0.6
+        case .pensive:  return 0.0
+        case .tense:    return -0.6
+        case .raw:      return -0.9
+        }
+    }
+
     static var selectable: [Mood] { allCases.filter { $0 != .none } }
 }
 
@@ -148,10 +161,14 @@ struct VoiceEntry: Identifiable, Codable, Equatable, Hashable {
     }
 
     nonisolated var durationLong: String {
-        let total = Int(duration)
-        let m = total / 60, s = total % 60
-        if m == 0 { return "\(s) sec" }
-        return "\(m) min \(String(format: "%02d", s)) sec"
+        // Foundation localizes the unit names ("min"/"sec") per locale, so no catalog keys needed.
+        let total = max(0, Int(duration))
+        if total < 60 {
+            return Duration.seconds(total)
+                .formatted(.units(allowed: [.seconds], width: .abbreviated).locale(AppLocale.locale))
+        }
+        return Duration.seconds(total)
+            .formatted(.units(allowed: [.minutes, .seconds], width: .abbreviated).locale(AppLocale.locale))
     }
 
     var timeShort: String { date.formatted(.dateTime.hour().minute().locale(AppLocale.locale)) }
@@ -180,27 +197,46 @@ final class JournalStore: ObservableObject {
     @Published var favOnly     = false
     @Published var moodFilter: Mood? = nil
 
+    /// Wired by RootTabView so a delete can stop playback of the entry being removed
+    /// (otherwise the mini-player is orphaned and its file is deleted out from under it).
+    weak var audioEngine: AudioEngine?
+
     init() {
         entries = Store.load()
         backfillSentiments()
+        sweepOrphanAudio()
+    }
+
+    /// Delete any `vj_*.m4a` in Documents that no entry references — e.g. audio left behind
+    /// when the app was killed during the undo grace window. Runs once at launch, off-main.
+    private func sweepOrphanAudio() {
+        let referenced = Set(entries.map { $0.fileName })
+        Task.detached(priority: .background) {
+            let fm = FileManager.default
+            let docs = Store.docsDir
+            guard let files = try? fm.contentsOfDirectory(atPath: docs.path) else { return }
+            for f in files where f.hasPrefix("vj_") && f.hasSuffix(".m4a") && !referenced.contains(f) {
+                try? fm.removeItem(at: docs.appendingPathComponent(f))
+            }
+        }
     }
 
     /// Score sentiment on any entry that has a transcript but no cached score yet
     /// (migrations from before sentiment existed, or restored backups).
     private func backfillSentiments() {
-        let needs = entries.enumerated().compactMap { i, e -> (Int, String)? in
-            (e.sentiment == nil && !e.transcript.isEmpty) ? (i, e.transcript) : nil
+        let needs = entries.compactMap { entry -> (UUID, String)? in
+            (entry.sentiment == nil && !entry.transcript.isEmpty) ? (entry.id, entry.transcript) : nil
         }
         guard !needs.isEmpty else { return }
         Task.detached(priority: .utility) {
-            let scored: [(Int, Double?)] = needs.map { ($0.0, Sentiment.score($0.1)) }
+            let scored: [(UUID, Double?)] = needs.map { ($0.0, Sentiment.score($0.1)) }
             await MainActor.run {
                 var changed = false
-                for (i, s) in scored where i < self.entries.count {
-                    if self.entries[i].sentiment == nil {
-                        self.entries[i].sentiment = s
-                        changed = true
-                    }
+                for (id, sentiment) in scored {
+                    guard let index = self.entries.firstIndex(where: { $0.id == id }),
+                          self.entries[index].sentiment == nil else { continue }
+                    self.entries[index].sentiment = sentiment
+                    changed = true
                 }
                 if changed { Store.save(self.entries) }
             }
@@ -220,12 +256,18 @@ final class JournalStore: ObservableObject {
         .sorted { $0.date > $1.date }
     }
 
-    func groupedByDay() -> [(key: String, date: Date, entries: [VoiceEntry])] {
+    struct DayGroup: Identifiable {
+        let id: String            // dayKey, "yyyy-MM-dd"
+        let date: Date
+        let entries: [VoiceEntry]
+    }
+
+    func groupedByDay() -> [DayGroup] {
         let sorted = filtered()
         let g = Dictionary(grouping: sorted) { $0.dayKey }
         return g.keys.sorted(by: >).compactMap { k in
-            guard let first = g[k]?.first else { return nil }
-            return (key: k, date: first.date, entries: g[k]!.sorted { $0.date > $1.date })
+            guard let entries = g[k], let first = entries.first else { return nil }
+            return DayGroup(id: k, date: first.date, entries: entries.sorted { $0.date > $1.date })
         }
     }
 
@@ -236,12 +278,15 @@ final class JournalStore: ObservableObject {
         return mins < 60 ? "\(mins)m" : "\(mins / 60)h \(mins % 60)m"
     }
     var streak: Int {
-        var n = 0, d = Date()
         let cal = Calendar.current
-        for _ in 0..<365 {
-            if entries.contains(where: { cal.isDate($0.date, inSameDayAs: d) }) { n += 1 }
-            else { break }
-            d = cal.date(byAdding: .day, value: -1, to: d)!
+        // Build the set of days-with-entries once (O(n)), then walk back O(streak).
+        let daySet = Set(entries.map { cal.startOfDay(for: $0.date) })
+        var n = 0
+        var d = cal.startOfDay(for: Date())
+        while daySet.contains(d) {
+            n += 1
+            guard n < 366, let prev = cal.date(byAdding: .day, value: -1, to: d) else { break }
+            d = prev
         }
         return n
     }
@@ -271,6 +316,7 @@ final class JournalStore: ObservableObject {
     private let undoGrace: TimeInterval = 5
 
     func remove(_ e: VoiceEntry) {
+        if audioEngine?.playingID == e.id { audioEngine?.stopPlaying() }   // don't orphan the player
         withAnimation(.easeOut(duration: 0.25)) { entries.removeAll { $0.id == e.id } }
         save()                                          // entry leaves the store; audio file lingers
         pendingEntries[e.id] = e
@@ -297,7 +343,7 @@ final class JournalStore: ObservableObject {
     private func finalizeDelete(_ id: UUID) {
         deleteWork[id] = nil
         if let e = pendingEntries.removeValue(forKey: id) {
-            try? FileManager.default.removeItem(at: Self.docURL(e.fileName))
+            Store.removeAudio(named: e.fileName)
         }
         if pendingDelete?.id == id { withAnimation(.easeOut(duration: 0.2)) { pendingDelete = nil } }
     }
@@ -305,7 +351,7 @@ final class JournalStore: ObservableObject {
     /// Force any lingering soft-deletes to finish (e.g. before a bulk wipe or app teardown).
     private func flushPendingDeletes() {
         deleteWork.values.forEach { $0.cancel() }; deleteWork.removeAll()
-        pendingEntries.values.forEach { try? FileManager.default.removeItem(at: Self.docURL($0.fileName)) }
+        pendingEntries.values.forEach { Store.removeAudio(named: $0.fileName) }
         pendingEntries.removeAll(); pendingDelete = nil
     }
 
@@ -313,8 +359,9 @@ final class JournalStore: ObservableObject {
         if let i = entries.firstIndex(where: { $0.id == e.id }) { entries[i] = e; save() }
     }
     func deleteAll() {
+        audioEngine?.stopPlaying()
         flushPendingDeletes()
-        entries.forEach { try? FileManager.default.removeItem(at: Self.docURL($0.fileName)) }
+        entries.forEach { Store.removeAudio(named: $0.fileName) }
         withAnimation { entries.removeAll() }
         save()
     }

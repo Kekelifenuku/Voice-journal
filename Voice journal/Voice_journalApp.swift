@@ -15,7 +15,8 @@ struct Voice_journalApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
-                .onAppear { RatingManager.shared.requestReviewIfNeeded() }
+            // Review is requested after a genuine value moment (a saved entry), not at cold
+            // launch — see CaptureView.handleFinish. Asking over the paywall harvests 1-stars.
         }
     }
 }

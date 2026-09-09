@@ -2,16 +2,25 @@
 //  The recording screen: daily prompt, live transcription, terracotta waveform.
 
 import SwiftUI
+import UIKit
 
 struct CaptureView: View {
     @ObservedObject var engine: AudioEngine
     @ObservedObject var store: JournalStore
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
+    /// First-run hand-off: after the very first entry, show it in the Journal so the loop resolves.
+    var goToJournal: () -> Void = {}
 
     @State private var savedNote = false
+    @State private var recordFailedNote = false
+    @State private var showMicDenied = false
+    @State private var showRecordFailed = false
+    /// Cached so the personalized-prompt computation doesn't re-run on every waveform frame.
+    @State private var todaysPrompt = ""
     @State private var pulse = false
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isPro) private var isPro
     @Environment(\.presentPaywall) private var presentPaywall
 
@@ -32,7 +41,7 @@ struct CaptureView: View {
                 if settings.showPromptOnCapture {
                     VStack(alignment: .leading, spacing: 12) {
                         Text(L("Today's prompt")).eyebrow()
-                        Text(L(PersonalPrompts.today(entries: store.entries)))
+                        Text(L(todaysPrompt.isEmpty ? PersonalPrompts.today(entries: store.entries) : todaysPrompt))
                             .font(Typo.serifItalic(26))
                             .foregroundColor(Paper.ink)
                             .lineSpacing(6)
@@ -69,6 +78,16 @@ struct CaptureView: View {
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 .allowsHitTesting(false)
             }
+
+            // Recording-failed confirmation (empty/corrupt file)
+            if recordFailedNote {
+                VStack {
+                    Spacer()
+                    failedBanner.padding(.bottom, 120)
+                }
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .allowsHitTesting(false)
+            }
         }
         .animation(.spring(response: 0.42, dampingFraction: 0.82), value: isActive)
         .onAppear {
@@ -76,10 +95,47 @@ struct CaptureView: View {
             engine.onLiveSamples = { [weak transcription] samples in transcription?.feedLive(samples) }
             // Warm up the on-device model so it's ready by the time recording ends.
             if settings.autoTranscribe && transcription.isSupported { transcription.prepare() }
+            todaysPrompt = PersonalPrompts.today(entries: store.entries)
             consumePendingRecord()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { consumePendingRecord() }
+        }
+        // Reset the pulse when recording ends so its animation re-triggers next time (not just once).
+        .onChange(of: engine.state) { _, s in
+            if s == .idle { pulse = false }
+        }
+        .onChange(of: engine.micDenied) { _, denied in
+            guard denied else { return }
+            engine.micDenied = false
+            pulse = false
+            transcription.stopLive()
+            HX.warn()
+            showMicDenied = true
+        }
+        .onChange(of: engine.recordStartFailed) { _, failed in
+            guard failed else { return }
+            engine.recordStartFailed = false
+            pulse = false
+            transcription.stopLive()
+            HX.error()
+            showRecordFailed = true
+        }
+        .onChange(of: store.entries.count) { _, _ in
+            todaysPrompt = PersonalPrompts.today(entries: store.entries)
+        }
+        .alert(L("Microphone access needed"), isPresented: $showMicDenied) {
+            Button(L("Open Settings")) {
+                if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+            }
+            Button(L("Not now"), role: .cancel) {}
+        } message: {
+            Text(L("Turn on microphone access in Settings to record your voice entries."))
+        }
+        .alert(L("Couldn't start recording"), isPresented: $showRecordFailed) {
+            Button(L("OK"), role: .cancel) {}
+        } message: {
+            Text(L("Your microphone may be in use by another app. Try again in a moment."))
         }
     }
 
@@ -105,7 +161,7 @@ struct CaptureView: View {
                     .fill(isRecording ? Paper.terra : Paper.muted)
                     .frame(width: 8, height: 8)
                     .opacity(isRecording ? (pulse ? 0.4 : 1) : 1)
-                    .animation(isRecording ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: pulse)
+                    .animation(isRecording && !reduceMotion ? .easeInOut(duration: 0.7).repeatForever(autoreverses: true) : .default, value: pulse)
                 Text(L(isPaused ? "PAUSED" : "LISTENING"))
                     .font(Typo.sans(11, .semibold)).tracking(1.6)
                     .foregroundColor(Paper.ink3)
@@ -119,7 +175,7 @@ struct CaptureView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     Text(liveDisplay)
                         .font(Typo.sans(21, .regular))
-                        .foregroundColor(liveText.isEmpty ? Paper.muted : Paper.ink)
+                        .foregroundColor(liveText.isEmpty ? Paper.placeholder : Paper.ink)
                         .lineSpacing(5)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -188,7 +244,7 @@ struct CaptureView: View {
             }
         } label: {
             ZStack {
-                if isActive {
+                if isActive && !reduceMotion {
                     Circle().stroke(Paper.terra.opacity(0.25), lineWidth: 2)
                         .frame(width: 104, height: 104)
                         .scaleEffect(pulse ? 1.12 : 0.95)
@@ -210,14 +266,27 @@ struct CaptureView: View {
             }
         }
         .buttonStyle(.plain)
-        .accessibilityLabel(isActive ? "Stop recording" : "Start recording")
-        .accessibilityHint(isActive ? "Saves this entry" : "Records a new voice entry")
+        .accessibilityLabel(L(isActive ? "Stop recording" : "Start recording"))
+        .accessibilityHint(L(isActive ? "Saves this entry" : "Records a new voice entry"))
     }
 
     private var savedBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "checkmark.circle.fill").foregroundColor(Paper.terra)
             Text(L(transcription.isSupported && settings.autoTranscribe ? "Saved · transcribing…" : "Saved to your journal"))
+                .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink)
+        }
+        .padding(.horizontal, 18).padding(.vertical, 12)
+        .background(Paper.white)
+        .clipShape(Capsule())
+        .overlay(Capsule().stroke(Paper.hair, lineWidth: 1))
+        .shadow(color: Color(0x2B2620, opacity: 0.1), radius: 16, y: 6)
+    }
+
+    private var failedBanner: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "exclamationmark.triangle.fill").foregroundColor(Paper.danger)
+            Text(L("Recording failed — nothing was saved"))
                 .font(Typo.sans(14, .medium)).foregroundColor(Paper.ink)
         }
         .padding(.horizontal, 18).padding(.vertical, 12)
@@ -245,8 +314,24 @@ struct CaptureView: View {
 
     private func handleFinish(file: String, dur: TimeInterval) {
         transcription.stopLive()
-        guard dur >= 0.6 else { return }          // ignore accidental taps
-        let prompt = settings.showPromptOnCapture ? PersonalPrompts.today(entries: store.entries) : ""
+        guard dur >= 0.6 else {                          // ignore accidental taps
+            try? FileManager.default.removeItem(at: store.docURL(file))
+            return
+        }
+        // Guard against an empty/corrupt file (interruption, disk full, converter failure): don't
+        // create a normal-looking entry that plays nothing and shows a flat resting waveform.
+        let url = store.docURL(file)
+        let size = ((try? FileManager.default.attributesOfItem(atPath: url.path))?[.size] as? Int) ?? 0
+        guard size > 1200 else {
+            try? FileManager.default.removeItem(at: url)
+            HX.error()
+            withAnimation { recordFailedNote = true }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
+                withAnimation { recordFailedNote = false }
+            }
+            return
+        }
+        let prompt = settings.showPromptOnCapture ? todaysPrompt : ""
         let entry = VoiceEntry(duration: dur, fileName: file, prompt: prompt)
         store.add(entry)
         store.ensureWaveform(for: entry)
@@ -256,6 +341,17 @@ struct CaptureView: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.4) {
             withAnimation { savedNote = false }
         }
+        // First-run hand-off: on the very first entry, reveal it in the Journal so the loop resolves
+        // (answers "where did it go?" and shows the live transcription). Only once — later saves stay put.
+        if store.entries.count == 1 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+                withAnimation { savedNote = false }
+                goToJournal()
+            }
+        }
+        // Ask for a review only after a genuine value moment (a saved entry). RatingManager still
+        // guards on launch count + once-only; this screen is only reachable past the gate.
+        RatingManager.shared.requestReviewIfNeeded()
         // Highest-intent paywall moment: after their 3rd entry they clearly value the app.
         // Delay slightly so the "Saved" banner registers first.
         if !isPro && store.entries.count == 3 {

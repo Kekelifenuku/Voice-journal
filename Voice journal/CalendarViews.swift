@@ -12,11 +12,11 @@ struct MoodFilterChips: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 chip(L("All"), active: store.moodFilter == nil, tint: Paper.ink) {
-                    store.moodFilter = nil; HX.tick()
+                    withAnimation(Motion.snappy) { store.moodFilter = nil }; HX.tick()
                 }
                 ForEach(Mood.selectable) { m in
                     chip(m.label, active: store.moodFilter == m, tint: m.color) {
-                        store.moodFilter = store.moodFilter == m ? nil : m; HX.tick()
+                        withAnimation(Motion.snappy) { store.moodFilter = store.moodFilter == m ? nil : m }; HX.tick()
                     }
                 }
             }
@@ -51,11 +51,15 @@ struct CalendarMonthView: View {
     @State private var displayed = Date()
     @State private var selected: Date?
 
-    private var cal: Calendar { Calendar.current }
-    /// Weekday header symbols in the selected app language.
+    private var cal: Calendar {
+        var c = Calendar.current; c.locale = AppLocale.locale; return c
+    }
+    /// Weekday header symbols in the selected app language, rotated to the locale's first weekday
+    /// (Monday-first in most of Europe/Asia, Sunday-first in the US).
     private var weekdaySymbols: [String] {
-        var c = Calendar.current; c.locale = AppLocale.locale
-        return c.veryShortWeekdaySymbols
+        let symbols = cal.veryShortWeekdaySymbols   // always Sunday-first
+        let shift = cal.firstWeekday - 1            // 0 = Sunday-first, 1 = Monday-first, …
+        return Array(symbols[shift...] + symbols[..<shift])
     }
     private var entriesForSelected: [VoiceEntry] {
         guard let s = selected else { return [] }
@@ -87,7 +91,7 @@ struct CalendarMonthView: View {
                     if let day {
                         dayCell(day)
                     } else {
-                        Color.clear.frame(height: 40)
+                        Color.clear.frame(height: 44)
                     }
                 }
             }
@@ -138,7 +142,7 @@ struct CalendarMonthView: View {
                     .frame(width: 5, height: 5)
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 40)
+            .frame(height: 44)
             .background(isSel ? Paper.terra : Color.clear)
             .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
@@ -150,8 +154,11 @@ struct CalendarMonthView: View {
     /// VoiceOver label for a calendar day, e.g. "Today, July 6, 2 entries".
     private func dayLabel(_ day: Date, count: Int, isToday: Bool) -> String {
         let date = day.formatted(.dateTime.month(.wide).day().locale(AppLocale.locale))
-        let entries = count == 0 ? String(localized: "no entries", bundle: AppLocale.bundle) : (count == 1 ? String(localized: "1 entry", bundle: AppLocale.bundle) : "\(count) entries")
-        return "\(isToday ? "Today, " : "")\(date), \(entries)"
+        let entries = count == 0 ? String(localized: "no entries", bundle: AppLocale.bundle)
+                    : count == 1 ? String(localized: "1 entry", bundle: AppLocale.bundle)
+                    : String(localized: "\(count) entries", bundle: AppLocale.bundle)
+        let prefix = isToday ? String(localized: "Today, ", bundle: AppLocale.bundle) : ""
+        return "\(prefix)\(date), \(entries)"
     }
 
     private func navButton(_ system: String, action: @escaping () -> Void) -> some View {
@@ -172,7 +179,9 @@ struct CalendarMonthView: View {
         let range = cal.range(of: .day, in: .month, for: displayed)!
         let comps = cal.dateComponents([.year, .month], from: displayed)
         let first = cal.date(from: comps)!
-        let leading = cal.component(.weekday, from: first) - 1
+        // Blank leading cells before the 1st, honoring the locale's first weekday.
+        let weekday = cal.component(.weekday, from: first)          // 1…7, Sunday = 1
+        let leading = (weekday - cal.firstWeekday + 7) % 7
         var days: [Date?] = Array(repeating: nil, count: leading)
         for d in range { days.append(cal.date(byAdding: .day, value: d - 1, to: first)) }
         return days

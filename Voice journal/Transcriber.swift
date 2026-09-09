@@ -33,6 +33,8 @@ final class TranscriptionManager: ObservableObject {
     @Published var state: TranscriptionState = .idle
     /// IDs of entries currently being transcribed (drives per-row spinners).
     @Published var working: Set<UUID> = []
+    /// IDs whose most recent transcription attempt failed (drives per-entry retry UI).
+    @Published private(set) var failedEntries: Set<UUID> = []
     /// Partial text streamed live during capture (empty when live streaming is off/unavailable).
     @Published var liveText: String = ""
 
@@ -89,7 +91,7 @@ final class TranscriptionManager: ObservableObject {
         #if canImport(WhisperKit)
         liveActive = false; liveTask?.cancel(); liveTask = nil
         liveBuffer.removeAll(); lastInferCount = 0; inferring = false
-        pipe = nil; attempted.removeAll(); pending.removeAll(); working.removeAll()
+        pipe = nil; attempted.removeAll(); pending.removeAll(); working.removeAll(); failedEntries.removeAll()
         state = .idle
         prepare()
         #endif
@@ -177,6 +179,7 @@ final class TranscriptionManager: ObservableObject {
         // Skip if already tried this session, or already queued/running.
         if !force && attempted.contains(entry.id) { return }
         if working.contains(entry.id) || pending.contains(where: { $0.id == entry.id }) { return }
+        failedEntries.remove(entry.id)
         working.insert(entry.id)
         pending.append((id: entry.id, url: store.docURL(entry.fileName)))
         drain(store: store)
@@ -197,6 +200,7 @@ final class TranscriptionManager: ObservableObject {
                 let out = await run(url: job.url)
                 working.remove(job.id)
                 if let out {                        // nil ⇒ model unavailable; leave un-attempted to retry later
+                    failedEntries.remove(job.id)
                     attempted.insert(job.id)
                     if !out.text.isEmpty, var e = store.entries.first(where: { $0.id == job.id }) {
                         let digest = Summarizer.summarize(out.text, mood: e.mood)
@@ -212,6 +216,8 @@ final class TranscriptionManager: ObservableObject {
                         }
                         store.update(e)
                     }
+                } else if case .failed = state {
+                    failedEntries.insert(job.id)
                 }
             }
             draining = false

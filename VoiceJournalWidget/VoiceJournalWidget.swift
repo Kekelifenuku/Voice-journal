@@ -19,8 +19,6 @@ private enum W {
     static let ink   = c(0x2B2620, 0xF0EBE0)
     static let ink3  = c(0x8A8073, 0x9A9082)
     static let terra = c(0xA9694B, 0xCE8A63)
-
-    static let lockedPrompt = "Open Voice Journal to unlock today's prompt."
 }
 
 // MARK: - Timeline
@@ -61,7 +59,9 @@ struct PromptWidgetView: View {
             }
             .foregroundColor(W.terra)
 
-            Text(W.lockedPrompt)
+            // Literal string → LocalizedStringKey, so WidgetKit localizes it against the
+            // widget target's String Catalog following the system language.
+            Text("Open Voice Journal to unlock today's prompt.")
                 .font(.system(size: family == .systemSmall ? 14 : 19, weight: .regular, design: .serif))
                 .italic()
                 .foregroundColor(W.ink)

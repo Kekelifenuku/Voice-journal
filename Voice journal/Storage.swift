@@ -20,7 +20,23 @@ nonisolated enum Store {
     }
     static var entriesURL: URL { supportDir.appendingPathComponent("entries.json") }
     static var docsDir: URL { fm.urls(for: .documentDirectory, in: .userDomainMask)[0] }
-    static func audioURL(_ name: String) -> URL { docsDir.appendingPathComponent(name) }
+
+    /// Resolve only a plain file name inside Documents. Imported/legacy JSON is untrusted: an
+    /// empty name or `../` path must never turn an entry deletion into a directory deletion.
+    static func safeAudioURL(_ name: String) -> URL? {
+        let leaf = (name as NSString).lastPathComponent
+        guard !leaf.isEmpty, leaf != ".", leaf != "..", leaf == name else { return nil }
+        return docsDir.appendingPathComponent(leaf)
+    }
+
+    static func audioURL(_ name: String) -> URL {
+        safeAudioURL(name) ?? docsDir.appendingPathComponent(".invalid-audio-file")
+    }
+
+    static func removeAudio(named name: String) {
+        guard let url = safeAudioURL(name), fm.fileExists(atPath: url.path) else { return }
+        try? fm.removeItem(at: url)
+    }
 
     /// Load entries from the JSON file, migrating once from the legacy UserDefaults blob.
     static func load() -> [VoiceEntry] {
@@ -67,7 +83,7 @@ nonisolated enum Exporter {
     nonisolated static func entryMarkdown(_ e: VoiceEntry) -> String {
         // H2 per entry: the document title owns H1, so entries nest under it and the export
         // gets a real outline.
-        var s = "## \(filled(e.title) ?? "Untitled entry")\(e.isFavorite ? " ★" : "")\n\n"
+        var s = "## \(filled(L(e.title)) ?? L("Untitled entry"))\(e.isFavorite ? " ★" : "")\n\n"
         s += "*\(e.date.formatted(date: .complete, time: .shortened))*  ·  \(e.durationLong)\n\n"
         if let prompt = filled(e.prompt) { s += "> \(prompt)\n\n" }
         var meta: [String] = []
@@ -169,14 +185,17 @@ nonisolated enum Exporter {
 
         let files = try Zip.read(zipURL)
         guard let entriesData = files.first(where: { $0.name.hasSuffix("entries.json") })?.data,
-              let restored = try? JSONDecoder().decode([VoiceEntry].self, from: entriesData)
+              let restored = try? JSONDecoder().decode([VoiceEntry].self, from: entriesData),
+              restored.allSatisfy({ Store.safeAudioURL($0.fileName) != nil })
         else { throw ExportError.badBackup }
 
         // Restore audio files (skip any already present).
-        for f in files where f.name.contains("audio/") && f.name.hasSuffix(".m4a") {
+        for f in files where f.name.hasSuffix(".m4a") {
+            let parent = ((f.name as NSString).deletingLastPathComponent as NSString).lastPathComponent
+            guard parent == "audio" else { continue }
             let name = (f.name as NSString).lastPathComponent
-            let dest = Store.audioURL(name)
-            if !fm.fileExists(atPath: dest.path) { try? f.data.write(to: dest, options: .atomic) }
+            guard let dest = Store.safeAudioURL(name) else { throw ExportError.badBackup }
+            if !fm.fileExists(atPath: dest.path) { try f.data.write(to: dest, options: .atomic) }
         }
         return restored
     }
@@ -197,6 +216,7 @@ nonisolated enum Exporter {
 /// Reads STORE/DEFLATE zip entries by parsing the central directory. Enough to restore our own backups.
 nonisolated enum Zip {
     struct File { let name: String; let data: Data }
+    private static let maxInflatedEntrySize = 512 * 1_024 * 1_024
 
     static func read(_ url: URL) throws -> [File] {
         let data = try Data(contentsOf: url)
@@ -206,10 +226,13 @@ nonisolated enum Zip {
         func u16(_ i: Int) -> Int { Int(bytes[i]) | (Int(bytes[i + 1]) << 8) }
         func u32(_ i: Int) -> Int { Int(bytes[i]) | (Int(bytes[i+1]) << 8) | (Int(bytes[i+2]) << 16) | (Int(bytes[i+3]) << 24) }
 
-        // Locate End Of Central Directory (0x06054b50), scanning backwards.
+        // Locate End Of Central Directory (0x06054b50). The ZIP comment is at most 65,535
+        // bytes, so avoid scanning a multi-gigabyte audio backup from end to beginning.
+        guard n >= 22 else { throw Exporter.ExportError.badBackup }
         var eocd = -1
         var i = n - 22
-        while i >= 0 {
+        let lowerBound = max(0, i - 65_535)
+        while i >= lowerBound {
             if u32(i) == 0x06054b50 { eocd = i; break }
             i -= 1
         }
@@ -219,7 +242,9 @@ nonisolated enum Zip {
 
         var out: [File] = []
         for _ in 0..<count {
-            guard offset + 46 <= n, u32(offset) == 0x02014b50 else { break }
+            guard offset <= n - 46, u32(offset) == 0x02014b50 else {
+                throw Exporter.ExportError.badBackup
+            }
             let method = u16(offset + 10)
             let compSize = u32(offset + 20)
             let uncompSize = u32(offset + 24)
@@ -228,22 +253,38 @@ nonisolated enum Zip {
             let commentLen = u16(offset + 32)
             let localOffset = u32(offset + 42)
             let nameStart = offset + 46
-            let name = String(bytes: bytes[nameStart..<nameStart + nameLen], encoding: .utf8) ?? ""
-            offset = nameStart + nameLen + extraLen + commentLen
+            let nameEnd = nameStart + nameLen
+            let nextOffset = nameEnd + extraLen + commentLen
+            guard nameEnd <= n, nextOffset <= n,
+                  let name = String(bytes: bytes[nameStart..<nameEnd], encoding: .utf8),
+                  !name.isEmpty else { throw Exporter.ExportError.badBackup }
+            offset = nextOffset
 
             // Read the local header to find where the file data begins.
-            guard localOffset + 30 <= n, u32(localOffset) == 0x04034b50 else { continue }
+            guard localOffset <= n - 30, u32(localOffset) == 0x04034b50 else {
+                throw Exporter.ExportError.badBackup
+            }
             let lNameLen = u16(localOffset + 26)
             let lExtraLen = u16(localOffset + 28)
             let dataStart = localOffset + 30 + lNameLen + lExtraLen
-            guard dataStart + compSize <= n else { continue }
-            let comp = Data(bytes[dataStart..<dataStart + compSize])
+            guard dataStart <= n, compSize <= n - dataStart else {
+                throw Exporter.ExportError.badBackup
+            }
+            let comp = Data(bytes[dataStart..<(dataStart + compSize)])
 
             if name.hasSuffix("/") { continue }            // directory entry
             let content: Data
-            if method == 0 { content = comp }               // stored
-            else if method == 8 { content = inflate(comp, expected: uncompSize) ?? Data() }
-            else { continue }
+            if method == 0 {
+                guard comp.count == uncompSize else { throw Exporter.ExportError.badBackup }
+                content = comp
+            } else if method == 8 {
+                guard uncompSize <= maxInflatedEntrySize,
+                      let inflated = inflate(comp, expected: uncompSize),
+                      inflated.count == uncompSize else { throw Exporter.ExportError.badBackup }
+                content = inflated
+            } else {
+                continue
+            }
             out.append(File(name: name, data: content))
         }
         return out

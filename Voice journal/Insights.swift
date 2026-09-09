@@ -6,7 +6,9 @@ import Charts
 
 struct InsightsView: View {
     @ObservedObject var store: JournalStore
-    @ObservedObject var engine: AudioEngine
+    // Not observed: Insights never reads engine state, it only forwards it to ReflectView (which
+    // observes it). Observing here re-ran every analytics computation 25×/sec during playback.
+    let engine: AudioEngine
     @ObservedObject var settings: AppSettings
     @ObservedObject var transcription: TranscriptionManager
     @ObservedObject var purchases: PurchaseManager
@@ -58,16 +60,11 @@ struct InsightsView: View {
     }
 
     private var statRow: some View {
-        HStack(spacing: 0) {
-            stat("\(store.entries.count)", "entries")
-            vline
-            stat(store.totalFormatted, "recorded")
-            vline
-            stat(store.streak == 0 ? "—" : "\(store.streak)", "day streak")
-        }
-        .padding(.vertical, 20)
-        .frame(maxWidth: .infinity)
-        .paperCard(22)
+        StatRow(stats: [
+            ("\(store.entries.count)", "entries"),
+            (store.totalFormatted, "recorded"),
+            (store.streak == 0 ? "—" : "\(store.streak)", "day streak")
+        ])
     }
 
     // MARK: Activity chart
@@ -83,6 +80,8 @@ struct InsightsView: View {
                 )
                 .foregroundStyle(Paper.terra.opacity(p.count == 0 ? 0.15 : 0.85))
                 .cornerRadius(3)
+                .accessibilityLabel(p.date.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day().locale(AppLocale.locale)))
+                .accessibilityValue(String(localized: "\(p.count) entries", bundle: AppLocale.bundle))
             }
             .chartYAxis {
                 AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
@@ -125,7 +124,7 @@ struct InsightsView: View {
                             .frame(width: 24, alignment: .trailing)
                     }
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("\(mc.mood.label): \(mc.count) \(mc.count == 1 ? "entry" : "entries")")
+                    .accessibilityLabel("\(mc.mood.label): \(mc.count == 1 ? String(localized: "1 entry", bundle: AppLocale.bundle) : String(localized: "\(mc.count) entries", bundle: AppLocale.bundle))")
                 }
             }
         }
@@ -195,26 +194,30 @@ struct InsightsView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
                 Text(L("Advanced")).eyebrow()
-                if !purchases.isPro {
-                    HStack(spacing: 3) {
-                        Image(systemName: "lock.fill").font(.system(size: 8, weight: .bold))
-                        Text(L("PRO")).font(Typo.sans(9, .bold)).tracking(0.4)
-                    }
-                    .foregroundColor(Paper.white)
-                    .padding(.horizontal, 6).padding(.vertical, 3)
-                    .background(Paper.terra).clipShape(Capsule())
-                }
+                if !purchases.isPro { ProBadge() }
                 Spacer()
             }
             .padding(.top, 4)
 
             if purchases.isPro {
-                if !sentimentSeries.contains(where: { $0.sentiment != nil }) {
+                let digest = Trends.monthlyDigest(store.entries)
+                if !digest.isEmpty { digestCard(digest) }
+                let series = sentimentSeries   // compute the 30-day series once, reuse below
+                if !series.contains(where: { $0.sentiment != nil }) {
                     proHint("Sentiment appears once your entries are transcribed.")
                 } else {
-                    sentimentCard
+                    sentimentCard(series)
                 }
+                if let dominant = Trends.dominantMood(store.entries, days: 30) { emotionalWeatherCard(dominant) }
+                let balance = Trends.emotionalBalance(store.entries)
+                if balance.total >= 3 { balanceCard(balance) }
+                if let shift = Trends.topMoodTransition(store.entries) { moodShiftsCard(shift) }
+                if store.entries.count >= 3 { daypartCard }
                 bestTimeCard
+                if store.entries.count >= 3 { rhythmCard }
+                consistencyCard
+                let words = Trends.totalWordsSpoken(store.entries)
+                if words > 0 { milestonesCard(words) }
                 if avgWordCount > 0 { paceCard }
                 if !trendingThemes.isEmpty { trendingCard }
             } else {
@@ -223,12 +226,12 @@ struct InsightsView: View {
         }
     }
 
-    private var sentimentCard: some View {
+    private func sentimentCard(_ series: [Trends.SentimentPoint]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text(L("Emotional trend")).eyebrow(Paper.ink3)
                 Spacer()
-                if let delta = Trends.sentimentDelta(store.entries) {
+                if let delta = Trends.sentimentDelta(from: series) {
                     HStack(spacing: 4) {
                         Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
                         Text(L(delta >= 0 ? "Brightening" : "Softening"))
@@ -237,17 +240,20 @@ struct InsightsView: View {
                     .foregroundColor(Paper.terra)
                 }
             }
-            Chart(sentimentSeries) { p in
+            Chart(series) { p in
                 if let s = p.sentiment {
                     LineMark(x: .value("Day", p.date, unit: .day),
                              y: .value("Sentiment", s))
                     .foregroundStyle(Paper.terra)
                     .interpolationMethod(.catmullRom)
+                    .accessibilityLabel(p.date.formatted(.dateTime.month(.wide).day().locale(AppLocale.locale)))
+                    .accessibilityValue(Sentiment.label(for: s))
                     AreaMark(x: .value("Day", p.date, unit: .day),
                              y: .value("Sentiment", s))
                     .foregroundStyle(LinearGradient(colors: [Paper.terra.opacity(0.35), Paper.terra.opacity(0.02)],
                                                     startPoint: .top, endPoint: .bottom))
                     .interpolationMethod(.catmullRom)
+                    .accessibilityHidden(true)
                 }
             }
             .chartYScale(domain: -1...1)
@@ -285,9 +291,9 @@ struct InsightsView: View {
 
     private var paceCard: some View {
         HStack(spacing: 24) {
-            paceStat("Avg length", "\(avgWordCount) words")
+            paceStat("Avg length", String(localized: "\(avgWordCount) words", bundle: AppLocale.bundle))
             Rectangle().fill(Paper.hair).frame(width: 1, height: 32)
-            paceStat("Speaking pace", "\(avgWPM) wpm")
+            paceStat("Speaking pace", String(localized: "\(avgWPM) wpm", bundle: AppLocale.bundle))
         }
         .padding(.vertical, 20).padding(.horizontal, 18)
         .frame(maxWidth: .infinity)
@@ -328,8 +334,253 @@ struct InsightsView: View {
         .paperCard(22)
     }
 
+    // MARK: At a glance + milestones
+
+    /// A synthesized plain-language recap of the month — ties the other signals together.
+    private func digestCard(_ lines: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles").font(.system(size: 12, weight: .semibold)).foregroundColor(Paper.terra)
+                Text(L("At a glance")).eyebrow()
+            }
+            Text(lines.joined(separator: " "))
+                .font(Typo.serifItalic(17)).foregroundColor(Paper.ink).lineSpacing(4)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(20, fill: Paper.cardAlt)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func milestonesCard(_ words: Int) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(L("Your journey")).eyebrow(Paper.ink3)
+            Text(words.formatted(.number.locale(AppLocale.locale)))
+                .font(Typo.sans(28, .bold)).foregroundColor(Paper.ink)
+            Text(String(localized: "words spoken across \(store.entries.count) entries · \(store.totalFormatted) recorded", bundle: AppLocale.bundle))
+                .font(Typo.sans(13, .medium)).foregroundColor(Paper.ink3)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+        .accessibilityElement(children: .combine)
+    }
+
+    // MARK: Mood insights (from the moods you tag)
+
+    /// Dominant mood + overall tone + a brightening/softening trend — the mood-valence algorithm.
+    private func emotionalWeatherCard(_ dominant: Trends.DominantMood) -> some View {
+        let valence = Trends.moodValence(store.entries, days: 30)
+        let delta = Trends.moodValenceDelta(store.entries)
+        return HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(dominant.mood.color.opacity(0.2)).frame(width: 44, height: 44)
+                Image(systemName: dominant.mood.glyph)
+                    .font(.system(size: 18, weight: .semibold)).foregroundColor(dominant.mood.color)
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L("Emotional weather")).font(Typo.sans(12, .medium)).foregroundColor(Paper.ink3)
+                Text(String(localized: "Mostly \(dominant.mood.label)", bundle: AppLocale.bundle))
+                    .font(Typo.sans(16, .semibold)).foregroundColor(Paper.ink)
+            }
+            Spacer()
+            VStack(alignment: .trailing, spacing: 4) {
+                if let valence {
+                    Text(Sentiment.label(for: valence))
+                        .font(Typo.sans(11, .semibold)).foregroundColor(Paper.terra)
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Paper.terra.opacity(0.14)).clipShape(Capsule())
+                }
+                if let delta, abs(delta) > 0.05 {
+                    HStack(spacing: 3) {
+                        Image(systemName: delta >= 0 ? "arrow.up.right" : "arrow.down.right")
+                        Text(L(delta >= 0 ? "Brightening" : "Softening"))
+                    }
+                    .font(Typo.sans(10, .semibold)).foregroundColor(Paper.ink3)
+                }
+            }
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// The most common move from one mood to another on the next entry — a transition model.
+    private func moodShiftsCard(_ shift: Trends.MoodShift) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(L("Mood shifts")).eyebrow(Paper.ink3)
+            HStack(spacing: 10) {
+                moodChip(shift.from)
+                Image(systemName: "arrow.right").font(.system(size: 12, weight: .bold)).foregroundColor(Paper.ink3)
+                moodChip(shift.to)
+                Spacer()
+            }
+            Text(String(localized: "After feeling \(shift.from.label), you often feel \(shift.to.label) next.", bundle: AppLocale.bundle))
+                .font(Typo.serifItalic(14)).foregroundColor(Paper.ink2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func moodChip(_ mood: Mood) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: mood.glyph).font(.system(size: 11, weight: .semibold))
+            Text(mood.label).font(Typo.sans(13, .medium))
+        }
+        .foregroundColor(Paper.ink2)
+        .padding(.horizontal, 12).padding(.vertical, 7)
+        .background(mood.color.opacity(0.22))
+        .clipShape(Capsule())
+    }
+
+    // MARK: Emotional balance
+
+    private func balanceCard(_ b: Trends.EmotionalBalance) -> some View {
+        let total = max(1, b.total)
+        let brightPct = Int((Double(b.bright) / Double(total) * 100).rounded())
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L("Emotional balance")).eyebrow(Paper.ink3)
+                Spacer()
+                Text("\(brightPct)%").font(Typo.sans(11, .semibold)).foregroundColor(Paper.terra)
+            }
+            GeometryReader { g in
+                HStack(spacing: 0) {
+                    if b.bright > 0 { Rectangle().fill(Mood.joyful.color).frame(width: g.size.width * CGFloat(b.bright) / CGFloat(total)) }
+                    if b.even > 0 { Rectangle().fill(Paper.muted).frame(width: g.size.width * CGFloat(b.even) / CGFloat(total)) }
+                    if b.heavy > 0 { Rectangle().fill(Mood.raw.color).frame(width: g.size.width * CGFloat(b.heavy) / CGFloat(total)) }
+                }
+            }
+            .frame(height: 14)
+            .clipShape(Capsule())
+            .accessibilityElement()
+            .accessibilityLabel("\(L("Bright")) \(b.bright), \(L("Even")) \(b.even), \(L("Heavy")) \(b.heavy)")
+            HStack(spacing: 16) {
+                balanceLegend(Mood.joyful.color, "Bright", b.bright)
+                balanceLegend(Paper.muted, "Even", b.even)
+                balanceLegend(Mood.raw.color, "Heavy", b.heavy)
+                Spacer()
+            }
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+    }
+
+    private func balanceLegend(_ color: Color, _ label: String, _ n: Int) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 8, height: 8)
+            Text(L(label)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
+            Text("\(n)").font(Typo.sans(11, .semibold)).foregroundColor(Paper.ink2)
+        }
+    }
+
+    // MARK: Mood by time of day
+
+    private var daypartCard: some View {
+        let data = Trends.moodByDaypart(store.entries).filter { $0.count > 0 }
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L("Mood by time of day")).eyebrow(Paper.ink3)
+                Spacer()
+                if let bright = Trends.brightestDaypart(store.entries) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "sparkles").font(.system(size: 10, weight: .semibold))
+                        Text(bright.label)
+                    }
+                    .font(Typo.sans(11, .semibold)).foregroundColor(Paper.terra)
+                }
+            }
+            VStack(spacing: 10) {
+                ForEach(data) { d in
+                    HStack(spacing: 12) {
+                        Image(systemName: d.part.glyph).font(.system(size: 14, weight: .semibold))
+                            .foregroundColor(Paper.terra).frame(width: 22)
+                        Text(d.part.label).font(Typo.sans(14, .medium)).foregroundColor(Paper.ink)
+                        Spacer()
+                        if let s = d.avgSentiment {
+                            Text(Sentiment.label(for: s))
+                                .font(Typo.sans(11, .semibold))
+                                .foregroundColor(Sentiment.suggestedMood(for: s).color)
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(Sentiment.suggestedMood(for: s).color.opacity(0.16))
+                                .clipShape(Capsule())
+                        } else {
+                            Text("\(d.count)").font(Typo.sans(12, .semibold)).foregroundColor(Paper.ink3)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+    }
+
+    // MARK: Weekly rhythm
+
+    private var rhythmCard: some View {
+        let data = Trends.weekdayRhythm(store.entries)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L("Weekly rhythm")).eyebrow(Paper.ink3)
+                Spacer()
+                if let peak = Trends.peakWeekday(store.entries) {
+                    Text(peak).font(Typo.sans(11, .semibold)).foregroundColor(Paper.terra)
+                }
+            }
+            Chart(data) { d in
+                BarMark(x: .value("Weekday", d.symbol), y: .value("Entries", d.count), width: .fixed(16))
+                    .foregroundStyle(Paper.terra.opacity(d.count == 0 ? 0.15 : 0.85))
+                    .cornerRadius(3)
+                    .accessibilityLabel(d.symbol)
+                    .accessibilityValue(String(localized: "\(d.count) entries", bundle: AppLocale.bundle))
+            }
+            .chartXScale(domain: data.map { $0.symbol })
+            .chartYAxis {
+                AxisMarks(position: .leading, values: .automatic(desiredCount: 3)) { _ in
+                    AxisValueLabel().foregroundStyle(Paper.ink3)
+                }
+            }
+            .chartXAxis {
+                AxisMarks(values: .automatic) { _ in
+                    AxisValueLabel().foregroundStyle(Paper.ink3)
+                }
+            }
+            .frame(height: 130)
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+    }
+
+    // MARK: Consistency
+
+    private var consistencyCard: some View {
+        let strip = Trends.activityStrip(store.entries, days: 30)
+        let longest = Trends.longestStreak(store.entries)
+        let active = Trends.activeDayCount(store.entries, inLast: 30)
+        return VStack(alignment: .leading, spacing: 14) {
+            Text(L("Consistency")).eyebrow(Paper.ink3)
+            HStack(spacing: 24) {
+                paceStat("Longest streak", "\(longest)")
+                Rectangle().fill(Paper.hair).frame(width: 1, height: 32)
+                paceStat("Days journaled", "\(active)/30")
+            }
+            GeometryReader { g in
+                let n = strip.count
+                let gap: CGFloat = 3
+                let w = max(2, (g.size.width - gap * CGFloat(n - 1)) / CGFloat(n))
+                HStack(spacing: gap) {
+                    ForEach(strip) { d in
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(d.count == 0 ? Paper.cardAlt : Paper.terra.opacity(min(1.0, 0.45 + Double(d.count) * 0.25)))
+                            .frame(width: w, height: 24)
+                    }
+                }
+            }
+            .frame(height: 24)
+            .accessibilityElement()
+            .accessibilityLabel(String(localized: "Journaled \(active) of the last 30 days", bundle: AppLocale.bundle))
+        }
+        .padding(18).frame(maxWidth: .infinity, alignment: .leading).paperCard(22)
+    }
+
     private func proHint(_ text: String) -> some View {
-        Text(text).font(Typo.serifItalic(14)).foregroundColor(Paper.ink3)
+        Text(L(text)).font(Typo.serifItalic(14)).foregroundColor(Paper.ink3)
             .padding(18).frame(maxWidth: .infinity, alignment: .leading)
             .paperCard(20, fill: Paper.cardAlt)
     }
@@ -342,7 +593,7 @@ struct InsightsView: View {
                     Text(L("See deeper patterns"))
                         .font(Typo.sans(17, .semibold)).foregroundColor(Paper.ink)
                 }
-                Text(L("Emotional trend, best time to journal, speaking pace, trending themes — all computed on your device."))
+                Text(L("Emotional trend & balance, mood by time of day, weekly rhythm, consistency, speaking pace, and trending themes — all computed privately on your device."))
                     .font(Typo.serifItalic(14)).foregroundColor(Paper.ink2).lineSpacing(3)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 6) {
@@ -412,12 +663,4 @@ struct InsightsView: View {
         return counts.sorted { $0.value > $1.value }.prefix(10).map { ($0.key, $0.value) }
     }
 
-    private func stat(_ v: String, _ l: String) -> some View {
-        VStack(spacing: 5) {
-            Text(v).font(Typo.sans(22, .bold)).foregroundColor(Paper.ink)
-            Text(L(l)).font(Typo.sans(11, .medium)).foregroundColor(Paper.ink3)
-        }
-        .frame(maxWidth: .infinity)
-    }
-    private var vline: some View { Rectangle().fill(Paper.hair).frame(width: 1, height: 34) }
 }

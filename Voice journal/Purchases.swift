@@ -25,6 +25,10 @@ final class PurchaseManager: ObservableObject {
     @Published var isPro = false
     @Published var activePlan: String?
     @Published var hasLoaded = false
+    /// True when the last entitlement check couldn't reach RevenueCat (offline / transient error),
+    /// so the UI can distinguish "confirmed not Pro" from "couldn't verify" and avoid locking out
+    /// an entitled user on a close-button-less paywall.
+    @Published var fetchFailed = false
 
     #if canImport(RevenueCat)
     private final class Delegate: NSObject, PurchasesDelegate {
@@ -41,9 +45,7 @@ final class PurchaseManager: ObservableObject {
         isPro = true
         activePlan = "Local Debug"
         hasLoaded = true
-        return
-        #endif
-
+        #else
         #if canImport(RevenueCat)
         // Configure once. Safe to call from init because RevenueCat guards against double-configuration.
         if !Purchases.isConfigured {
@@ -57,9 +59,23 @@ final class PurchaseManager: ObservableObject {
         delegate.owner = self
         Purchases.shared.delegate = delegate
 
-        Task { await refresh() }
+        // RevenueCat persists the last entitlement snapshot. Apply it synchronously so returning
+        // users do not sit behind a network spinner every time the app launches; the refresh below
+        // still reconciles it with the server immediately.
+        if let cachedInfo = Purchases.shared.cachedCustomerInfo {
+            apply(cachedInfo)
+        }
+
+        // Warm the offering cache alongside the entitlement refresh. RevenueCatUI then has the
+        // packages ready when the hard paywall is presented instead of starting a second request.
+        Task {
+            async let entitlementRefresh: Void = refresh()
+            async let paywallWarmup: Void = prefetchOfferings()
+            _ = await (entitlementRefresh, paywallWarmup)
+        }
         #else
         hasLoaded = true
+        #endif
         #endif
     }
 
@@ -69,17 +85,18 @@ final class PurchaseManager: ObservableObject {
         isPro = true
         activePlan = "Local Debug"
         hasLoaded = true
-        return
-        #endif
-
+        #else
         #if canImport(RevenueCat)
         if let info = try? await Purchases.shared.customerInfo() {
+            fetchFailed = false
             apply(info)
         } else {
+            fetchFailed = true
             hasLoaded = true
         }
         #else
         hasLoaded = true
+        #endif
         #endif
     }
 
@@ -89,26 +106,32 @@ final class PurchaseManager: ObservableObject {
         isPro = true
         activePlan = "Local Debug"
         hasLoaded = true
-        return
-        #endif
-
+        #else
         #if canImport(RevenueCat)
         if let info = try? await Purchases.shared.restorePurchases() {
+            fetchFailed = false
             apply(info)
         } else {
+            fetchFailed = true
             hasLoaded = true
         }
         #else
         hasLoaded = true
         #endif
+        #endif
     }
 
     #if canImport(RevenueCat)
+    private func prefetchOfferings() async {
+        _ = try? await Purchases.shared.offerings()
+    }
+
     private func apply(_ info: CustomerInfo) {
         let entitlement = info.entitlements[Pro.entitlement]
         let active = entitlement?.isActive == true
         isPro = active
         hasLoaded = true
+        fetchFailed = false
         if active {
             // Best-effort human label: prefer product id → title (Monthly/Annual/Lifetime), fall back to raw id.
             activePlan = Self.label(for: entitlement?.productIdentifier)

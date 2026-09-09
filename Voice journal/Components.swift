@@ -104,7 +104,7 @@ struct PrimaryCapsuleButton: View {
             .clipShape(Capsule())
             .shadow(color: Paper.terra.opacity(0.3), radius: 12, y: 5)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(PressableButtonStyle())
     }
 }
 
@@ -240,6 +240,9 @@ struct InteractiveTranscript: View {
             }
         }
         .animation(.easeOut(duration: 0.15), value: activeIndex)
+        // Read the transcript as one element instead of forcing a swipe per word.
+        // (Sighted users keep per-word tap-to-seek.)
+        .accessibilityElement(children: .combine)
     }
 
     private func seek(to w: WordStamp) {
@@ -272,11 +275,12 @@ struct AudioPill: View {
                     Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                         .font(.system(size: 19, weight: .bold))
                         .foregroundColor(Paper.white)
+                        .contentTransition(.symbolEffect(.replace))
                         .offset(x: isPlaying ? 0 : 1.5)
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isPlaying ? "Pause" : "Play recording")
+            .accessibilityLabel(L(isPlaying ? "Pause" : "Play recording"))
 
             VStack(alignment: .leading, spacing: 8) {
                 MiniWaveform(bars: entry.waveform, count: 34,
@@ -286,7 +290,7 @@ struct AudioPill: View {
                 Text(timeLabel)
                     .font(Typo.sans(11, .medium))
                     .foregroundColor(Paper.onDark2)
-                    .accessibilityLabel("Elapsed \(timeLabel)")
+                    .accessibilityLabel(String(localized: "Elapsed \(timeLabel)", bundle: AppLocale.bundle))
             }
         }
         .padding(.horizontal, 16)
