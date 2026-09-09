@@ -1,9 +1,9 @@
 Voice Journal, söylediğiniz düşünceleri özel ve aranabilir bir günlüğe dönüştürür — yazmadan.
 
-Bir kez dokunun ve özgürce konuşun. Her kelime, yerel yapay zeka ile doğrudan cihazınızda transkribe edilir — internet bağlantısı gerekmez. Konuşmayı bitirdiğiniz anda düşünceleriniz aranabilir metne dönüşür.
+Bir kez dokunun ve özgürce konuşun. Her kelime, yerel yapay zeka ile doğrudan cihazınızda transkribe edilir. Konuşmayı bitirdiğiniz anda düşünceleriniz aranabilir metne dönüşür.
 
 ── TASARIMDAN GELEN GİZLİLİK ──
-Hiçbir şey telefonunuzu terk etmez. Hesap açmanız gerekmiyor, bulut depolama yok, başka kimse günlük notlarınızı okuyamaz. Sadece siz ve düşünceleriniz.
+Kayıtlarınız, transkripsiyonlarınız ve günlük notlarınız cihazınızda kalır. Hesap ve günlük için bulut eşzamanlama yoktur.
 
 ── KENDİ KALIPLARINIZİ KEŞFEDİN ──
 Her giriş, sessiz bir yapay zeka özeti, ruh hali etiketi ve yinelenen temalar alır. Zamanla zihninizin en çok neye döndüğünü göreceksiniz.
@@ -13,7 +13,7 @@ Her gün yeni bir yansıma sorusu ve küçük bir motivasyon gelir — başlamak
 
 ── DÜŞÜNME ŞEKLİNİZE GÖRE TASARLANDI ──
 • Tek dokunuşla kayıt
-• Tamamen çevrimdışı transkripsiyon
+• Doğrudan cihazda transkripsiyon
 • Geçmişinize göz atmak için takvim
 • Tüm girişlerde anında arama
 • Önemli anlar için favoriler

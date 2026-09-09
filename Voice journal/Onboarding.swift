@@ -31,13 +31,13 @@ struct OnboardingView: View {
             OnbPage(eyebrow: "Voice Journal", title: "Speak your", accentWord: "mind.",
                     body: "No typing, no formatting. Press once and talk — your thoughts, exactly as they arrive."),
             OnbPage(eyebrow: "On device", title: "Every word,", accentWord: "transcribed.",
-                    body: "Your voice becomes searchable text, right on your phone. Nothing is uploaded, ever."),
+                    body: "Your voice becomes searchable text on your device. Recordings and transcripts are not uploaded."),
             OnbPage(eyebrow: "How it felt", title: "Name the", accentWord: "feeling.",
                     body: "Tag each moment — calm, joyful, tense — with a single tap, and let the mood color your journal."),
             OnbPage(eyebrow: "Insights", title: "Watch it", accentWord: "unfold.",
                     body: "Your emotional weather, your moods over time, and the rhythm of your days — patterns you can actually feel."),
             OnbPage(eyebrow: "Only yours", title: "Private by", accentWord: "design.",
-                    body: "Everything stays on your device. No cloud, no account — no one else can read your journal."),
+                    body: "Your recordings, transcripts, and journal stay on this device. No account or journal cloud sync."),
             OnbPage(eyebrow: "Almost there", title: "Getting", accentWord: "ready.",
                     body: modelReady
                         ? "On-device transcription is ready. Your first entry will turn into text the moment you finish."

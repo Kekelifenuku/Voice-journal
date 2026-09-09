@@ -36,8 +36,8 @@ extension EnvironmentValues {
     }
 }
 
-/// A sheet that renders the current RevenueCat paywall. On successful purchase / restore
-/// it dismisses itself; the app's `PurchaseManager.isPro` observer flips independently.
+/// A sheet that renders the current RevenueCat paywall. On successful purchase / restore,
+/// it applies the returned entitlement snapshot immediately and dismisses when Pro is active.
 struct PaywallSheet: View {
     @ObservedObject var purchases: PurchaseManager
     var displayCloseButton = true
@@ -46,12 +46,13 @@ struct PaywallSheet: View {
     var body: some View {
         #if canImport(RevenueCatUI)
         PaywallView(displayCloseButton: displayCloseButton)
-            .onPurchaseCompleted { _ in Task { await purchases.refresh(); dismiss() } }
+            .onPurchaseCompleted { info in
+                purchases.apply(info)
+                if info.entitlements[Pro.entitlement]?.isActive == true { dismiss() }
+            }
             .onRestoreCompleted { info in
-                Task {
-                    await purchases.refresh()
-                    if info.entitlements[Pro.entitlement]?.isActive == true { dismiss() }
-                }
+                purchases.apply(info)
+                if info.entitlements[Pro.entitlement]?.isActive == true { dismiss() }
             }
         #else
         // Fallback used only until the RevenueCatUI package finishes resolving.
@@ -62,4 +63,5 @@ struct PaywallSheet: View {
         .padding(24)
         #endif
     }
+
 }

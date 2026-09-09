@@ -41,6 +41,10 @@ struct RootView: View {
                 // on the close-button-less paywall — offer Retry + Restore instead.
                 EntitlementRecoveryView(purchases: purchases)
                     .transition(.opacity)
+            } else if !purchases.hasLoadedOffering {
+                // Keep a stable native loading surface up while RevenueCat warms its offering,
+                // products, images, and eligibility cache. Pro users never wait on this branch.
+                EntitlementLoadingView()
             } else {
                 PaywallSheet(purchases: purchases, displayCloseButton: false)
                     .transition(.opacity)
@@ -55,6 +59,10 @@ struct RootView: View {
         .environment(\.isPro, purchases.isPro)
         .sheet(isPresented: $showPaywall) {
             PaywallSheet(purchases: purchases)
+        }
+        .onOpenURL { url in
+            guard VoiceJournalRoute.handlesRecordingURL(url) else { return }
+            VoiceJournalRoute.requestRecording()
         }
         .onChange(of: rootScenePhase) { _, phase in
             if phase == .active { Task { await purchases.refresh() } }
@@ -135,6 +143,7 @@ struct RootTabView: View {
     // Text re-resolves against the newly selected .lproj. The StateObjects above
     // live on this (unchanged) view, so they and the selected tab survive the rebuild.
     @AppStorage("s_applang") private var appLang = "system"
+    @AppStorage(VoiceJournalRoute.recordingRequestTokenKey) private var recordingRequestToken = ""
     @Environment(\.scenePhase) private var scenePhase
 
     private func goToCapture() {
@@ -142,6 +151,11 @@ struct RootTabView: View {
     }
     private func goToJournal() {
         withAnimation(.easeInOut(duration: 0.3)) { tab = 1 }
+    }
+
+    private func routePendingRecording() {
+        guard UserDefaults.standard.bool(forKey: VoiceJournalRoute.pendingRecordingKey) else { return }
+        goToCapture()
     }
 
     var body: some View {
@@ -182,7 +196,10 @@ struct RootTabView: View {
         }
         .id(appLang)
         .tint(Paper.terra)
-        .onAppear { store.audioEngine = engine }   // so deletes can stop playback of the removed entry
+        .onAppear {
+            store.audioEngine = engine   // so deletes can stop playback of the removed entry
+            routePendingRecording()
+        }
         .dynamicTypeSize(...DynamicTypeSize.accessibility3)   // scale text, but cap the extremes
         .overlay(alignment: .bottom) {
             if store.pendingDelete != nil {
@@ -193,8 +210,9 @@ struct RootTabView: View {
             }
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: store.pendingDelete?.id)
+        .onChange(of: recordingRequestToken) { _, _ in routePendingRecording() }
         .onChange(of: scenePhase) { _, phase in
-            if phase == .active, UserDefaults.standard.bool(forKey: "vj_pending_record") { tab = 0 }
+            if phase == .active { routePendingRecording() }
         }
     }
 }

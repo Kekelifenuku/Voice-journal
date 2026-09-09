@@ -1,9 +1,9 @@
 Voice Journal zet je gesproken gedachten om in een privé, doorzoekbaar dagboek — zonder typen.
 
-Druk één keer en spreek vrij. Elk woord wordt direct op je apparaat getranscribeerd door lokale AI — geen internetverbinding nodig. Zodra je klaar bent met praten, worden je gedachten doorzoekbare tekst.
+Druk één keer en spreek vrij. Elk woord wordt direct op je apparaat getranscribeerd door lokale AI. Zodra je klaar bent met praten, worden je gedachten doorzoekbare tekst.
 
 ── PRIVÉ BY DESIGN ──
-Niets verlaat ooit je telefoon. Geen account nodig, geen cloud, niemand anders kan je dagboekentries lezen. Alleen jij en je gedachten.
+Je opnames, transcripties en dagboekentries blijven op je apparaat. Geen account en geen cloudsynchronisatie van je dagboek.
 
 ── ONTDEK JE PATRONEN ──
 Elke entry krijgt een rustige AI-samenvatting, een stemmingslabel en terugkerende thema's. Na verloop van tijd zie je waaraan je gedachten het meest terugkeren.
@@ -13,7 +13,7 @@ Elke dag brengt een nieuw reflectieonderwerp en een klein beetje motivatie — p
 
 ── ONTWORPEN VOOR HOE JIJ DENKT ──
 • Opnemen met één tik
-• Transcriptie volledig offline
+• Transcriptie rechtstreeks op het apparaat
 • Agenda om je geschiedenis te bekijken
 • Directe zoekfunctie in alle entries
 • Favorieten voor bijzondere momenten

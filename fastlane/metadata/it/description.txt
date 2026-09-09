@@ -1,9 +1,9 @@
 Voice Journal trasforma i tuoi pensieri parlati in un diario privato e ricercabile — senza bisogno di digitare.
 
-Premi una volta e parla liberamente. Ogni parola viene trascritta direttamente sul tuo dispositivo dall'IA locale — senza connessione internet. Non appena finisci di parlare, i tuoi pensieri diventano testo ricercabile.
+Premi una volta e parla liberamente. Ogni parola viene trascritta direttamente sul tuo dispositivo dall'IA locale. Non appena finisci di parlare, i tuoi pensieri diventano testo ricercabile.
 
 ── PRIVATO PER DESIGN ──
-Nulla lascia mai il tuo telefono. Nessun account da creare, nessun cloud, nessun altro può leggere le tue voci. Solo tu e i tuoi pensieri.
+Registrazioni, trascrizioni e voci restano sul tuo dispositivo. Nessun account e nessuna sincronizzazione cloud del diario.
 
 ── SCOPRI I TUOI SCHEMI ──
 Ogni voce riceve un riassunto IA discreto, un'etichetta dell'umore e temi ricorrenti. Nel tempo vedrai cosa occupa davvero la tua mente.
@@ -13,7 +13,7 @@ Ogni giorno arriva un nuovo spunto di riflessione e un piccolo momento di motiva
 
 ── PROGETTATO PER IL TUO MODO DI PENSARE ──
 • Registra con un solo tocco
-• Trascrizione completamente offline
+• Trascrizione direttamente sul dispositivo
 • Calendario per sfogliare la tua storia
 • Ricerca istantanea in tutte le voci
 • Preferiti per i momenti che contano

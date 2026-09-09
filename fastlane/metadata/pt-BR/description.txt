@@ -1,9 +1,9 @@
 Voice Journal transforma seus pensamentos falados em um diário particular e pesquisável — sem precisar digitar nada.
 
-Pressione uma vez e fale livremente. Cada palavra é transcrita diretamente no seu dispositivo por IA local — sem conexão à internet. Ao terminar de falar, seus pensamentos viram texto pesquisável.
+Pressione uma vez e fale livremente. Cada palavra é transcrita diretamente no seu dispositivo por IA local. Ao terminar de falar, seus pensamentos viram texto pesquisável.
 
 ── PRIVACIDADE POR DESIGN ──
-Nada sai do seu telefone. Sem conta para criar, sem armazenamento em nuvem, ninguém mais pode ler suas entradas. Apenas você e seus pensamentos.
+Suas gravações, transcrições e entradas ficam no seu dispositivo. Sem conta e sem sincronização do diário na nuvem.
 
 ── DESCUBRA SEUS PADRÕES ──
 Cada entrada recebe um resumo de IA, uma etiqueta de humor e temas recorrentes. Com o tempo, você verá o que sua mente mais revisita.
@@ -13,7 +13,7 @@ Todos os dias traz uma nova proposta de reflexão e um pequeno momento de motiva
 
 ── FEITO PARA SUA FORMA DE PENSAR ──
 • Grave com um único toque
-• Transcrição completamente offline
+• Transcrição diretamente no dispositivo
 • Calendário para explorar seu histórico
 • Busca instantânea em todas as entradas
 • Favoritos para os momentos que importam

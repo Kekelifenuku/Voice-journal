@@ -1,9 +1,9 @@
 Voice Journal omvandlar dina talade tankar till en privat, sökbar dagbok — utan att behöva skriva.
 
-Tryck en gång och prata fritt. Varje ord transkriberas direkt på din enhet med lokal AI — ingen internetanslutning krävs. Så fort du är klar med att prata blir dina tankar sökbar text.
+Tryck en gång och prata fritt. Varje ord transkriberas direkt på din enhet med lokal AI. Så fort du är klar med att prata blir dina tankar sökbar text.
 
 ── PRIVAT FRÅN GRUNDEN ──
-Inget lämnar din telefon. Inget konto att skapa, ingen molnlagring, ingen annan kan läsa dina anteckningar. Bara du och dina tankar.
+Dina inspelningar, transkriptioner och anteckningar stannar på enheten. Inget konto och ingen molnsynkronisering av dagboken.
 
 ── UPPTÄCK DINA MÖNSTER ──
 Varje anteckning får en diskret AI-sammanfattning, en stämningsmärkning och återkommande teman. Med tiden ser du vad ditt sinne återvänder till mest.
@@ -13,7 +13,7 @@ Varje dag ger en ny reflektionsfråga och en liten portion motivation — precis
 
 ── BYGGT FÖR DITT SÄTT ATT TÄNKA ──
 • Spela in med ett enda tryck
-• Transkription helt offline
+• Transkription direkt på enheten
 • Kalender för att bläddra i din historia
 • Direkt sökning i alla anteckningar
 • Favoriter för stunder som betyder något

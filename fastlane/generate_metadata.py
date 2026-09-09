@@ -14,10 +14,10 @@ BASE = os.path.join(os.path.dirname(__file__), "metadata")
 EN_DESC = """\
 Voice Journal turns your spoken thoughts into a private, searchable diary — no typing, no formatting needed.
 
-Press once and speak freely. Every word is transcribed right on your device using on-device AI — no internet connection required. The moment you finish speaking, your thoughts become searchable text.
+Press once and speak freely. Transcription runs on your device using on-device AI. Once the selected speech model has downloaded, transcription works offline. The moment you finish speaking, your thoughts become searchable text.
 
 ── PRIVATE BY DESIGN ──
-Nothing ever leaves your phone. No account to create, no cloud storage, no one else who can read your entries. Just you and your thoughts.
+Your recordings, transcripts, and journal entries stay on your device. Voice Journal has no account or journal cloud sync. Internet is used to download speech models, manage purchases and the subscription screen, and fetch daily motivation; your journal content is not sent with those requests.
 
 ── REFLECT ON YOUR PATTERNS ──
 Each entry gets a quiet AI summary, a mood tag, and recurring themes. Over time you'll see exactly what your mind returns to most.
@@ -27,7 +27,7 @@ Every day brings a fresh reflection prompt and a small moment of motivation — 
 
 ── BUILT FOR HOW YOU THINK ──
 • Tap once to record — no setup, no friction
-• On-device transcription, fully offline
+• On-device transcription after the speech-model download
 • Calendar to browse your history
 • Instant search across every entry
 • Favorites for the moments that matter
@@ -56,15 +56,15 @@ LOCALES = {
 
 "de-DE": {
     "name": "Voice Journal – Sprachtagebuch",
-    "subtitle": "Privates KI-Tagebuch, offline",
+    "subtitle": "Privates KI-Sprachtagebuch",
     "keywords": "Tagebuch,Sprachtagebuch,Stimmung,Reflexion,Selbstreflexion,Wohlbefinden,Transkription,Notizbuch",
     "description": """\
 Voice Journal verwandelt deine gesprochenen Gedanken in ein privates, durchsuchbares Tagebuch – ganz ohne Tippen.
 
-Einmal drücken, frei sprechen. Jedes Wort wird direkt auf deinem Gerät transkribiert – keine Internetverbindung erforderlich. Sobald du fertig bist, sind deine Gedanken als durchsuchbarer Text gespeichert.
+Einmal drücken, frei sprechen. Jedes Wort wird direkt auf deinem Gerät transkribiert. Sobald du fertig bist, sind deine Gedanken als durchsuchbarer Text gespeichert.
 
 ── PRIVAT VON ANFANG AN ──
-Nichts verlässt dein Gerät. Kein Konto, keine Cloud, kein Fremdzugriff. Nur du und deine Gedanken.
+Deine Aufnahmen, Transkripte und Tagebucheinträge bleiben auf deinem Gerät. Kein Konto und keine Cloud-Synchronisierung deines Tagebuchs.
 
 ── ERKENNE DEINE MUSTER ──
 Jeder Eintrag erhält eine KI-Zusammenfassung, einen Stimmungs-Tag und wiederkehrende Themen. Mit der Zeit erkennst du, was dich wirklich beschäftigt.
@@ -74,7 +74,7 @@ Jeden Tag wartet ein frischer Reflexionsimpuls auf dich – gerade genug, um los
 
 ── ENTWICKELT FÜR DEINE GEDANKEN ──
 • Einmal tippen, sofort aufnehmen
-• Transkription komplett offline
+• Transkription direkt auf dem Gerät
 • Kalender zur Übersicht deiner Einträge
 • Sofortsuche über alle Einträge
 • Favoriten für besondere Momente
@@ -95,10 +95,10 @@ Starte heute deinen ersten Eintrag.\
     "description": """\
 Voice Journal transforme vos pensées vocales en un journal intime privé et consultable — sans saisie au clavier.
 
-Appuyez une fois et parlez librement. Chaque mot est transcrit directement sur votre appareil par une IA locale — aucune connexion internet requise. Dès que vous avez fini de parler, vos pensées deviennent un texte consultable.
+Appuyez une fois et parlez librement. Chaque mot est transcrit directement sur votre appareil par une IA locale. Dès que vous avez fini de parler, vos pensées deviennent un texte consultable.
 
 ── PRIVÉ PAR CONCEPTION ──
-Rien ne quitte jamais votre téléphone. Pas de compte à créer, pas de cloud, personne d'autre ne peut lire vos entrées. Juste vous et vos pensées.
+Vos enregistrements, transcriptions et entrées restent sur votre appareil. Aucun compte et aucune synchronisation cloud de votre journal.
 
 ── DÉCOUVREZ VOS SCHÉMAS ──
 Chaque entrée reçoit un résumé IA discret, une étiquette d'humeur et des thèmes récurrents. Au fil du temps, vous verrez ce qui occupe vraiment votre esprit.
@@ -108,7 +108,7 @@ Chaque jour apporte une nouvelle invitation à la réflexion et une petite dose 
 
 ── CONÇU POUR VOTRE FAÇON DE PENSER ──
 • Enregistrement en un seul toucher
-• Transcription entièrement hors ligne
+• Transcription directement sur l'appareil
 • Calendrier pour parcourir votre historique
 • Recherche instantanée dans toutes les entrées
 • Favoris pour les moments importants
@@ -129,10 +129,10 @@ Commencez votre première entrée aujourd'hui.\
     "description": """\
 Voice Journal convierte tus pensamientos hablados en un diario privado y con búsqueda — sin necesidad de escribir.
 
-Pulsa una vez y habla libremente. Cada palabra se transcribe en tu dispositivo mediante IA local — sin conexión a internet. En cuanto terminas de hablar, tus pensamientos se convierten en texto buscable.
+Pulsa una vez y habla libremente. Cada palabra se transcribe en tu dispositivo mediante IA local. En cuanto terminas de hablar, tus pensamientos se convierten en texto buscable.
 
 ── PRIVACIDAD POR DISEÑO ──
-Nada abandona tu teléfono. Sin cuenta que crear, sin almacenamiento en la nube, nadie más puede leer tus entradas. Solo tú y tus pensamientos.
+Tus grabaciones, transcripciones y entradas permanecen en tu dispositivo. Sin cuenta ni sincronización del diario en la nube.
 
 ── DESCUBRE TUS PATRONES ──
 Cada entrada recibe un resumen de IA, una etiqueta de estado de ánimo y temas recurrentes. Con el tiempo verás qué ocupa realmente tu mente.
@@ -142,7 +142,7 @@ Cada día trae una nueva propuesta de reflexión y una pequeña dosis de motivac
 
 ── DISEÑADO PARA TU FORMA DE PENSAR ──
 • Graba con un solo toque
-• Transcripción completamente sin conexión
+• Transcripción directamente en el dispositivo
 • Calendario para explorar tu historial
 • Búsqueda instantánea en todas las entradas
 • Favoritos para los momentos importantes
@@ -163,10 +163,10 @@ Comienza tu primera entrada hoy.\
     "description": """\
 Voice Journal convierte tus pensamientos en un diario privado y con búsqueda — sin necesidad de escribir.
 
-Toca una vez y habla con libertad. Cada palabra se transcribe en tu dispositivo mediante IA local — sin internet. Cuando terminas de hablar, tus pensamientos se convierten en texto que puedes buscar.
+Toca una vez y habla con libertad. Cada palabra se transcribe en tu dispositivo mediante IA local. Cuando terminas de hablar, tus pensamientos se convierten en texto que puedes buscar.
 
 ── PRIVACIDAD POR DISEÑO ──
-Nada sale de tu teléfono. Sin cuenta, sin nube, nadie más puede leer tus entradas. Solo tú y tus pensamientos.
+Tus grabaciones, transcripciones y entradas permanecen en tu dispositivo. Sin cuenta ni sincronización del diario en la nube.
 
 ── DESCUBRE TUS PATRONES ──
 Cada entrada recibe un resumen de IA, una etiqueta de estado de ánimo y temas frecuentes. Con el tiempo descubrirás qué ocupa más tu mente.
@@ -176,7 +176,7 @@ Cada día llega una nueva propuesta de reflexión y motivación — lo justo par
 
 ── HECHO PARA TU FORMA DE PENSAR ──
 • Graba con un solo toque
-• Transcripción sin conexión
+• Transcripción directamente en el dispositivo
 • Calendario para explorar tu historial
 • Búsqueda instantánea en todas las entradas
 • Favoritos para los momentos que importan
@@ -193,14 +193,14 @@ Comienza tu primer entrada hoy.\
 "ja": {
     "name": "Voice Journal – 音声日記AI",
     "subtitle": "プライベート音声日記アプリ",
-    "keywords": "音声日記,日記,気分記録,自己反省,文字起こし,プライバシー,マインドフルネス,ボイスメモ",
+    "keywords": "音声日記,日記,気分記録,自己反省,文字起こし,ボイスメモ",
     "description": """\
 Voice Journalは、話した言葉をそのままプライベートな日記に変換するアプリです。タイピング不要。
 
-1回タップして、自由に話すだけ。デバイス上のAIがすべてを文字起こし — インターネット接続不要。話し終わった瞬間、思考が検索可能なテキストになります。
+1回タップして、自由に話すだけ。デバイス上のAIがすべてを文字起こしします。話し終わった瞬間、思考が検索可能なテキストになります。
 
 ── 完全プライベート ──
-データは一切外部に送られません。アカウント不要、クラウド不使用。あなたの日記は、あなただけのもの。
+録音、文字起こし、日記はデバイス内に保存されます。アカウントや日記のクラウド同期はありません。
 
 ── 自分のパターンを見つける ──
 各エントリにAIサマリー、気分タグ、繰り返し現れるテーマが付きます。時間をかけて、自分が何について考えがちかが見えてきます。
@@ -210,7 +210,7 @@ Voice Journalは、話した言葉をそのままプライベートな日記に�
 
 ── あなたの思考に合わせた設計 ──
 • ワンタップで録音開始
-• 完全オフライン文字起こし
+• デバイス上の文字起こし
 • カレンダーで過去の記録を閲覧
 • 全エントリを即座に検索
 • お気に入りで大切な瞬間を保存
@@ -227,14 +227,14 @@ Voice Journalは、話した言葉をそのままプライベートな日記に�
 "ko": {
     "name": "Voice Journal – AI 음성 일기",
     "subtitle": "프라이빗 음성 일기 앱",
-    "keywords": "음성일기,일기,기분기록,자기반성,음성메모,개인정보보호,마음챙김,감사일기",
+    "keywords": "음성일기,일기,기분기록,자기성찰,음성메모,마음챙김",
     "description": """\
 Voice Journal은 말한 내용을 그대로 개인 일기로 변환해주는 앱입니다. 타이핑이 필요 없습니다.
 
-한 번 탭하고 자유롭게 말하세요. 기기의 AI가 모든 단어를 바로 텍스트로 변환합니다 — 인터넷 연결 불필요. 말을 마치는 순간 생각이 검색 가능한 텍스트가 됩니다.
+한 번 탭하고 자유롭게 말하세요. 기기의 AI가 모든 단어를 바로 텍스트로 변환합니다. 말을 마치는 순간 생각이 검색 가능한 텍스트가 됩니다.
 
 ── 완전한 프라이버시 ──
-데이터는 절대 외부로 전송되지 않습니다. 계정 불필요, 클라우드 없음. 오직 당신만의 일기.
+녹음, 받아쓰기, 일기 항목은 기기에 저장됩니다. 계정이나 일기 클라우드 동기화가 없습니다.
 
 ── 나의 패턴 발견하기 ──
 각 항목마다 AI 요약, 기분 태그, 반복 주제가 추가됩니다. 시간이 지나면서 자신이 무엇을 자주 생각하는지 알게 됩니다.
@@ -244,7 +244,7 @@ Voice Journal은 말한 내용을 그대로 개인 일기로 변환해주는 앱
 
 ── 당신의 사고방식에 맞는 설계 ──
 • 한 번 탭으로 녹음 시작
-• 완전 오프라인 받아쓰기
+• 기기 내 받아쓰기
 • 달력으로 과거 기록 탐색
 • 모든 항목 즉시 검색
 • 소중한 순간을 즐겨찾기
@@ -260,15 +260,15 @@ Voice Journal은 말한 내용을 그대로 개인 일기로 변환해주는 앱
 
 "zh-Hans": {
     "name": "Voice Journal – AI语音日记",
-    "subtitle": "私人语音日记，离线AI转写",
+    "subtitle": "私人语音日记，设备端AI转写",
     "keywords": "语音日记,日记,情绪记录,自我反思,语音转文字,隐私,正念,感恩日记",
     "description": """\
 Voice Journal 将您的语音想法转化为私密、可搜索的日记——无需打字，无需格式化。
 
-轻触一次，自由说话。每个字都由设备端AI即时转写——无需网络连接。说完之后，您的想法立刻变成可搜索的文字。
+轻触一次，自由说话。每个字都由设备端AI即时转写。说完之后，您的想法立刻变成可搜索的文字。
 
 ── 隐私优先设计 ──
-数据永远不会离开您的手机。无需创建账户，没有云存储，没有人能读取您的日记。只有您和您的思想。
+录音、转写和日记内容保存在您的设备上。无需账户，也不会将日记同步到云端。
 
 ── 发现您的规律 ──
 每篇日记都会获得AI简洁摘要、情绪标签和反复出现的主题。随着时间推移，您会了解自己最常思考的是什么。
@@ -278,7 +278,7 @@ Voice Journal 将您的语音想法转化为私密、可搜索的日记——无
 
 ── 专为您的思维方式而设计 ──
 • 一键开始录音
-• 完全离线的设备端转写
+• 设备端AI转写
 • 日历浏览过往记录
 • 即时搜索所有日记
 • 收藏重要时刻
@@ -294,15 +294,15 @@ Voice Journal 将您的语音想法转化为私密、可搜索的日记——无
 
 "zh-Hant": {
     "name": "Voice Journal – AI語音日記",
-    "subtitle": "私人語音日記，離線AI轉寫",
+    "subtitle": "私人語音日記，裝置端AI轉寫",
     "keywords": "語音日記,日記,情緒記錄,自我反思,語音轉文字,隱私,正念,感恩日記",
     "description": """\
 Voice Journal 將您的語音想法轉化為私密、可搜尋的日記——無需打字，無需格式化。
 
-輕觸一次，自由說話。每個字都由裝置端AI即時轉寫——無需網路連線。說完之後，您的想法立刻變成可搜尋的文字。
+輕觸一次，自由說話。每個字都由裝置端AI即時轉寫。說完之後，您的想法立刻變成可搜尋的文字。
 
 ── 隱私優先設計 ──
-資料永遠不會離開您的手機。無需建立帳號，沒有雲端儲存，沒有人能讀取您的日記。只有您和您的思想。
+錄音、轉寫和日記內容保存在您的裝置上。無需帳號，也不會將日記同步到雲端。
 
 ── 發現您的規律 ──
 每篇日記都會獲得AI簡潔摘要、情緒標籤和反覆出現的主題。隨著時間推移，您會了解自己最常思考的是什麼。
@@ -312,7 +312,7 @@ Voice Journal 將您的語音想法轉化為私密、可搜尋的日記——無
 
 ── 專為您的思維方式而設計 ──
 • 一鍵開始錄音
-• 完全離線的裝置端轉寫
+• 裝置端AI轉寫
 • 行事曆瀏覽過往記錄
 • 即時搜尋所有日記
 • 收藏重要時刻
@@ -333,10 +333,10 @@ Voice Journal 將您的語音想法轉化為私密、可搜尋的日記——無
     "description": """\
 Voice Journal transforma seus pensamentos falados em um diário particular e pesquisável — sem precisar digitar nada.
 
-Pressione uma vez e fale livremente. Cada palavra é transcrita diretamente no seu dispositivo por IA local — sem conexão à internet. Ao terminar de falar, seus pensamentos viram texto pesquisável.
+Pressione uma vez e fale livremente. Cada palavra é transcrita diretamente no seu dispositivo por IA local. Ao terminar de falar, seus pensamentos viram texto pesquisável.
 
 ── PRIVACIDADE POR DESIGN ──
-Nada sai do seu telefone. Sem conta para criar, sem armazenamento em nuvem, ninguém mais pode ler suas entradas. Apenas você e seus pensamentos.
+Suas gravações, transcrições e entradas ficam no seu dispositivo. Sem conta e sem sincronização do diário na nuvem.
 
 ── DESCUBRA SEUS PADRÕES ──
 Cada entrada recebe um resumo de IA, uma etiqueta de humor e temas recorrentes. Com o tempo, você verá o que sua mente mais revisita.
@@ -346,7 +346,7 @@ Todos os dias traz uma nova proposta de reflexão e um pequeno momento de motiva
 
 ── FEITO PARA SUA FORMA DE PENSAR ──
 • Grave com um único toque
-• Transcrição completamente offline
+• Transcrição diretamente no dispositivo
 • Calendário para explorar seu histórico
 • Busca instantânea em todas as entradas
 • Favoritos para os momentos que importam
@@ -367,10 +367,10 @@ Comece sua primeira entrada hoje.\
     "description": """\
 Voice Journal trasforma i tuoi pensieri parlati in un diario privato e ricercabile — senza bisogno di digitare.
 
-Premi una volta e parla liberamente. Ogni parola viene trascritta direttamente sul tuo dispositivo dall'IA locale — senza connessione internet. Non appena finisci di parlare, i tuoi pensieri diventano testo ricercabile.
+Premi una volta e parla liberamente. Ogni parola viene trascritta direttamente sul tuo dispositivo dall'IA locale. Non appena finisci di parlare, i tuoi pensieri diventano testo ricercabile.
 
 ── PRIVATO PER DESIGN ──
-Nulla lascia mai il tuo telefono. Nessun account da creare, nessun cloud, nessun altro può leggere le tue voci. Solo tu e i tuoi pensieri.
+Registrazioni, trascrizioni e voci restano sul tuo dispositivo. Nessun account e nessuna sincronizzazione cloud del diario.
 
 ── SCOPRI I TUOI SCHEMI ──
 Ogni voce riceve un riassunto IA discreto, un'etichetta dell'umore e temi ricorrenti. Nel tempo vedrai cosa occupa davvero la tua mente.
@@ -380,7 +380,7 @@ Ogni giorno arriva un nuovo spunto di riflessione e un piccolo momento di motiva
 
 ── PROGETTATO PER IL TUO MODO DI PENSARE ──
 • Registra con un solo tocco
-• Trascrizione completamente offline
+• Trascrizione direttamente sul dispositivo
 • Calendario per sfogliare la tua storia
 • Ricerca istantanea in tutte le voci
 • Preferiti per i momenti che contano
@@ -401,10 +401,10 @@ Inizia la tua prima voce oggi.\
     "description": """\
 Voice Journal zet je gesproken gedachten om in een privé, doorzoekbaar dagboek — zonder typen.
 
-Druk één keer en spreek vrij. Elk woord wordt direct op je apparaat getranscribeerd door lokale AI — geen internetverbinding nodig. Zodra je klaar bent met praten, worden je gedachten doorzoekbare tekst.
+Druk één keer en spreek vrij. Elk woord wordt direct op je apparaat getranscribeerd door lokale AI. Zodra je klaar bent met praten, worden je gedachten doorzoekbare tekst.
 
 ── PRIVÉ BY DESIGN ──
-Niets verlaat ooit je telefoon. Geen account nodig, geen cloud, niemand anders kan je dagboekentries lezen. Alleen jij en je gedachten.
+Je opnames, transcripties en dagboekentries blijven op je apparaat. Geen account en geen cloudsynchronisatie van je dagboek.
 
 ── ONTDEK JE PATRONEN ──
 Elke entry krijgt een rustige AI-samenvatting, een stemmingslabel en terugkerende thema's. Na verloop van tijd zie je waaraan je gedachten het meest terugkeren.
@@ -414,7 +414,7 @@ Elke dag brengt een nieuw reflectieonderwerp en een klein beetje motivatie — p
 
 ── ONTWORPEN VOOR HOE JIJ DENKT ──
 • Opnemen met één tik
-• Transcriptie volledig offline
+• Transcriptie rechtstreeks op het apparaat
 • Agenda om je geschiedenis te bekijken
 • Directe zoekfunctie in alle entries
 • Favorieten voor bijzondere momenten
@@ -430,15 +430,15 @@ Begin vandaag met je eerste entry.\
 
 "sv": {
     "name": "Voice Journal – Röstdagbok",
-    "subtitle": "Privat AI-röstdagbok, offline",
+    "subtitle": "Privat AI-röstdagbok",
     "keywords": "röstdagbok,dagbok,humör,reflektion,transkription,integritet,mindfulness,tacksamhet",
     "description": """\
 Voice Journal omvandlar dina talade tankar till en privat, sökbar dagbok — utan att behöva skriva.
 
-Tryck en gång och prata fritt. Varje ord transkriberas direkt på din enhet med lokal AI — ingen internetanslutning krävs. Så fort du är klar med att prata blir dina tankar sökbar text.
+Tryck en gång och prata fritt. Varje ord transkriberas direkt på din enhet med lokal AI. Så fort du är klar med att prata blir dina tankar sökbar text.
 
 ── PRIVAT FRÅN GRUNDEN ──
-Inget lämnar din telefon. Inget konto att skapa, ingen molnlagring, ingen annan kan läsa dina anteckningar. Bara du och dina tankar.
+Dina inspelningar, transkriptioner och anteckningar stannar på enheten. Inget konto och ingen molnsynkronisering av dagboken.
 
 ── UPPTÄCK DINA MÖNSTER ──
 Varje anteckning får en diskret AI-sammanfattning, en stämningsmärkning och återkommande teman. Med tiden ser du vad ditt sinne återvänder till mest.
@@ -448,7 +448,7 @@ Varje dag ger en ny reflektionsfråga och en liten portion motivation — precis
 
 ── BYGGT FÖR DITT SÄTT ATT TÄNKA ──
 • Spela in med ett enda tryck
-• Transkription helt offline
+• Transkription direkt på enheten
 • Kalender för att bläddra i din historia
 • Direkt sökning i alla anteckningar
 • Favoriter för stunder som betyder något
@@ -464,15 +464,15 @@ Börja din första anteckning idag.\
 
 "da": {
     "name": "Voice Journal – Taledagbog",
-    "subtitle": "Privat AI-taledagbog, offline",
+    "subtitle": "Privat AI-taledagbog",
     "keywords": "taledagbog,dagbog,humør,refleksion,transskription,privatliv,mindfulness,taknemmelighed",
     "description": """\
 Voice Journal omdanner dine talte tanker til en privat, søgbar dagbog — uden at skulle skrive.
 
-Tryk én gang og tal frit. Hvert ord transskriberes direkte på din enhed med lokal AI — ingen internetforbindelse nødvendig. Så snart du er færdig med at tale, bliver dine tanker til søgbar tekst.
+Tryk én gang og tal frit. Hvert ord transskriberes direkte på din enhed med lokal AI. Så snart du er færdig med at tale, bliver dine tanker til søgbar tekst.
 
 ── PRIVAT AF DESIGN ──
-Intet forlader nogensinde din telefon. Ingen konto at oprette, ingen sky-lagring, ingen andre kan læse dine indlæg. Kun dig og dine tanker.
+Dine optagelser, transskriptioner og indlæg bliver på din enhed. Ingen konto og ingen cloud-synkronisering af dagbogen.
 
 ── OPDAG DINE MØNSTRE ──
 Hvert indlæg får en diskret AI-opsummering, et stemningsmærke og tilbagevendende temaer. Med tiden vil du se, hvad dit sind vender mest tilbage til.
@@ -482,7 +482,7 @@ Hver dag bringer en ny refleksionsfråga og en lille portion motivation — præ
 
 ── BYGGET TIL DIN TANKEGANG ──
 • Optag med et enkelt tryk
-• Transskription helt offline
+• Transskription direkte på enheden
 • Kalender til at gennemse din historie
 • Øjeblikkelig søgning i alle indlæg
 • Favoritter til øjeblikke, der betyder noget
@@ -498,15 +498,15 @@ Start din første indgang i dag.\
 
 "nb": {
     "name": "Voice Journal – Taledagbok",
-    "subtitle": "Privat AI-taledagbok, offline",
+    "subtitle": "Privat AI-taledagbok",
     "keywords": "taledagbok,dagbok,humør,refleksjon,transkripsjon,personvern,mindfulness,takknemlighet",
     "description": """\
 Voice Journal gjør om talte tanker til en privat, søkbar dagbok — uten å måtte skrive.
 
-Trykk én gang og snakk fritt. Hvert ord transkriberes direkte på enheten din med lokal AI — ingen internettilkobling nødvendig. Så snart du er ferdig med å snakke, blir tankene dine søkbar tekst.
+Trykk én gang og snakk fritt. Hvert ord transkriberes direkte på enheten din med lokal AI. Så snart du er ferdig med å snakke, blir tankene dine søkbar tekst.
 
 ── PRIVAT BY DESIGN ──
-Ingenting forlater telefonen din. Ingen konto å opprette, ingen skylagring, ingen andre kan lese innleggene dine. Bare deg og tankene dine.
+Opptakene, transkripsjonene og innleggene dine blir på enheten. Ingen konto og ingen skysynkronisering av dagboken.
 
 ── OPPDAG MØNSTRENE DINE ──
 Hvert innlegg får et diskret AI-sammendrag, en stemningsetikett og tilbakevendende temaer. Over tid vil du se hva sinnet ditt oftest vender tilbake til.
@@ -516,7 +516,7 @@ Hver dag gir et nytt refleksjonsspørsmål og litt motivasjon — akkurat nok ti
 
 ── LAGET FOR DIN TENKEMÅTE ──
 • Ta opp med ett trykk
-• Transkripsjon helt offline
+• Transkripsjon direkte på enheten
 • Kalender for å se gjennom historikken din
 • Øyeblikkelig søk i alle innlegg
 • Favoritter for øyeblikkene som betyr noe
@@ -537,10 +537,10 @@ Start din første oppføring i dag.\
     "description": """\
 Voice Journal muuttaa puhutut ajatuksesi yksityiseksi, hakukelpoiseksi päiväkirjaksi — ei kirjoittamista tarvita.
 
-Paina kerran ja puhu vapaasti. Jokainen sana litteroidaan suoraan laitteellasi paikallisella tekoälyllä — ei internet-yhteyttä tarvita. Heti kun olet puhunut, ajatuksesi muuttuvat hakukelpoiseksi tekstiksi.
+Paina kerran ja puhu vapaasti. Jokainen sana litteroidaan suoraan laitteellasi paikallisella tekoälyllä. Heti kun olet puhunut, ajatuksesi muuttuvat hakukelpoiseksi tekstiksi.
 
 ── YKSITYISYYS SUUNNITTELUSTA LÄHTIEN ──
-Mikään ei poistu puhelimestasi. Ei tiliä luotavaksi, ei pilvivarastointia, kukaan muu ei voi lukea merkintöjäsi. Vain sinä ja ajatuksesi.
+Tallenteet, litteroinnit ja merkinnät säilyvät laitteellasi. Ei tiliä eikä päiväkirjan pilvisynkronointia.
 
 ── LÖYDÄ KAAVASI ──
 Jokainen merkintä saa hiljaisen tekoälytiivistelmän, mielialatunnisteen ja toistuvat teemat. Ajan myötä näet, mihin mielesi palaa useimmiten.
@@ -550,7 +550,7 @@ Joka päivä tuo uuden pohdintakysymyksen ja pienen annoksen motivaatiota — ju
 
 ── SUUNNITELTU AJATTELUTAVALLESI ──
 • Äänitä yhdellä napautuksella
-• Litterointi täysin offline-tilassa
+• Litterointi suoraan laitteella
 • Kalenteri historiaasi selailemiseen
 • Pikahaku kaikissa merkinnöissä
 • Suosikit tärkeille hetkille
@@ -571,10 +571,10 @@ Aloita ensimmäinen merkintäsi tänään.\
     "description": """\
 Voice Journal zamienia mówione myśli w prywatny, przeszukiwalny dziennik — bez pisania.
 
-Naciśnij raz i mów swobodnie. Każde słowo jest transkrybowane bezpośrednio na Twoim urządzeniu przez lokalną AI — bez połączenia z internetem. Gdy skończysz mówić, Twoje myśli stają się przeszukiwalnym tekstem.
+Naciśnij raz i mów swobodnie. Każde słowo jest transkrybowane bezpośrednio na Twoim urządzeniu przez lokalną AI. Gdy skończysz mówić, Twoje myśli stają się przeszukiwalnym tekstem.
 
 ── PRYWATNOŚĆ W PROJEKCIE ──
-Nic nigdy nie opuszcza Twojego telefonu. Żadnego konta do tworzenia, żadnej chmury, nikt inny nie może czytać Twoich wpisów. Tylko Ty i Twoje myśli.
+Nagrania, transkrypcje i wpisy pozostają na Twoim urządzeniu. Bez konta i bez synchronizacji dziennika z chmurą.
 
 ── ODKRYJ SWOJE WZORCE ──
 Każdy wpis otrzymuje zwięzłe podsumowanie AI, etykietę nastroju i powtarzające się tematy. Z czasem zobaczysz, do czego Twój umysł najczęściej wraca.
@@ -584,7 +584,7 @@ Każdy dzień przynosi nowe pytanie do refleksji i małą dawkę motywacji — d
 
 ── STWORZONY DLA TWOJEGO SPOSOBU MYŚLENIA ──
 • Nagrywaj jednym dotknięciem
-• Transkrypcja całkowicie offline
+• Transkrypcja bezpośrednio na urządzeniu
 • Kalendarz do przeglądania historii
 • Natychmiastowe wyszukiwanie we wszystkich wpisach
 • Ulubione dla ważnych chwil
@@ -601,14 +601,14 @@ Zacznij swój pierwszy wpis już dziś.\
 "ru": {
     "name": "Voice Journal – Дневник Голоса",
     "subtitle": "Личный голосовой дневник с ИИ",
-    "keywords": "голосовой дневник,дневник,настроение,рефлексия,транскрипция,приватность,осознанность,благодарность",
+    "keywords": "аудиодневник,настроение,рефлексия,расшифровка",
     "description": """\
 Voice Journal превращает ваши устные мысли в приватный дневник с поиском — без набора текста.
 
-Нажмите один раз и говорите свободно. Каждое слово транскрибируется прямо на вашем устройстве с помощью локального ИИ — без подключения к интернету. Как только вы закончите говорить, ваши мысли превращаются в текст с возможностью поиска.
+Нажмите один раз и говорите свободно. Каждое слово транскрибируется прямо на вашем устройстве с помощью локального ИИ. Как только вы закончите говорить, ваши мысли превращаются в текст с возможностью поиска.
 
 ── КОНФИДЕНЦИАЛЬНОСТЬ КАК ПРИНЦИП ──
-Ничего никогда не покидает ваш телефон. Не нужно создавать аккаунт, нет облачного хранилища, никто другой не может читать ваши записи. Только вы и ваши мысли.
+Записи, расшифровки и заметки остаются на вашем устройстве. Без аккаунта и облачной синхронизации дневника.
 
 ── ОТКРОЙТЕ СВОИ ПАТТЕРНЫ ──
 Каждая запись получает краткое резюме от ИИ, метку настроения и повторяющиеся темы. Со временем вы увидите, к чему ваш ум возвращается чаще всего.
@@ -618,7 +618,7 @@ Voice Journal превращает ваши устные мысли в прив�
 
 ── СОЗДАНО ДЛЯ ВАШЕГО СПОСОБА ДУМАТЬ ──
 • Запись одним нажатием
-• Транскрипция полностью офлайн
+• Транскрипция прямо на устройстве
 • Календарь для просмотра истории
 • Мгновенный поиск по всем записям
 • Избранное для важных моментов
@@ -635,14 +635,14 @@ Voice Journal — для всех, кто лучше думает, когда г
 "ar-SA": {
     "name": "Voice Journal – مذكرات صوتية",
     "subtitle": "مذكرات صوتية خاصة مع ذكاء",
-    "keywords": "مذكرات صوتية,يوميات,تتبع المزاج,تأمل,نسخ صوتي,خصوصية,ماينفولنس,امتنان",
+    "keywords": "مذكرات صوتية,يوميات,مزاج,تأمل,نسخ صوتي,خصوصية",
     "description": """\
 يحوّل Voice Journal أفكارك المنطوقة إلى مذكرات خاصة وقابلة للبحث — دون الحاجة إلى الكتابة.
 
-اضغط مرة واحدة وتكلم بحرية. يتم نسخ كل كلمة مباشرةً على جهازك بواسطة الذكاء الاصطناعي المحلي — دون الحاجة إلى اتصال بالإنترنت. فور انتهائك من الكلام، تتحول أفكارك إلى نص قابل للبحث.
+اضغط مرة واحدة وتكلم بحرية. يتم نسخ كل كلمة مباشرةً على جهازك بواسطة الذكاء الاصطناعي المحلي. فور انتهائك من الكلام، تتحول أفكارك إلى نص قابل للبحث.
 
 ── خصوصية بالتصميم ──
-لا شيء يغادر هاتفك أبدًا. لا حاجة لإنشاء حساب، ولا تخزين سحابي، ولا يمكن لأحد قراءة مدوناتك. أنت وأفكارك فقط.
+تبقى تسجيلاتك والنصوص ومدوناتك على جهازك. لا حاجة إلى حساب ولا توجد مزامنة سحابية للمدونات.
 
 ── اكتشف أنماطك ──
 تحصل كل مدونة على ملخص ذكاء اصطناعي هادئ، وعلامة مزاجية، وموضوعات متكررة. مع مرور الوقت، ستدرك ما يشغل عقلك أكثر.
@@ -652,7 +652,7 @@ Voice Journal — для всех, кто лучше думает, когда г
 
 ── مصمم لطريقة تفكيرك ──
 • تسجيل بضغطة واحدة
-• نسخ صوتي بالكامل دون إنترنت
+• نسخ صوتي مباشرةً على الجهاز
 • تقويم لاستعراض تاريخك
 • بحث فوري في جميع المدونات
 • المفضلة للحظات المهمة
@@ -673,10 +673,10 @@ Voice Journal لكل من يفكر بشكل أفضل عند الكلام — ا�
     "description": """\
 Voice Journal, söylediğiniz düşünceleri özel ve aranabilir bir günlüğe dönüştürür — yazmadan.
 
-Bir kez dokunun ve özgürce konuşun. Her kelime, yerel yapay zeka ile doğrudan cihazınızda transkribe edilir — internet bağlantısı gerekmez. Konuşmayı bitirdiğiniz anda düşünceleriniz aranabilir metne dönüşür.
+Bir kez dokunun ve özgürce konuşun. Her kelime, yerel yapay zeka ile doğrudan cihazınızda transkribe edilir. Konuşmayı bitirdiğiniz anda düşünceleriniz aranabilir metne dönüşür.
 
 ── TASARIMDAN GELEN GİZLİLİK ──
-Hiçbir şey telefonunuzu terk etmez. Hesap açmanız gerekmiyor, bulut depolama yok, başka kimse günlük notlarınızı okuyamaz. Sadece siz ve düşünceleriniz.
+Kayıtlarınız, transkripsiyonlarınız ve günlük notlarınız cihazınızda kalır. Hesap ve günlük için bulut eşzamanlama yoktur.
 
 ── KENDİ KALIPLARINIZİ KEŞFEDİN ──
 Her giriş, sessiz bir yapay zeka özeti, ruh hali etiketi ve yinelenen temalar alır. Zamanla zihninizin en çok neye döndüğünü göreceksiniz.
@@ -686,7 +686,7 @@ Her gün yeni bir yansıma sorusu ve küçük bir motivasyon gelir — başlamak
 
 ── DÜŞÜNME ŞEKLİNİZE GÖRE TASARLANDI ──
 • Tek dokunuşla kayıt
-• Tamamen çevrimdışı transkripsiyon
+• Doğrudan cihazda transkripsiyon
 • Geçmişinize göz atmak için takvim
 • Tüm girişlerde anında arama
 • Önemli anlar için favoriler
@@ -714,17 +714,25 @@ def validate_limits(locale, data):
         warnings.append(f"  ⚠ name too long: {len(data['name'])} chars (max 30)")
     if len(data["subtitle"]) > 30:
         warnings.append(f"  ⚠ subtitle too long: {len(data['subtitle'])} chars (max 30)")
-    if len(data["keywords"]) > 100:
-        warnings.append(f"  ⚠ keywords too long: {len(data['keywords'])} chars (max 100)")
+    keyword_bytes = len(data["keywords"].encode("utf-8"))
+    if keyword_bytes > 100:
+        warnings.append(f"  ⚠ keywords too long: {keyword_bytes} UTF-8 bytes (max 100)")
     if warnings:
         print(f"\n{locale}:")
         for w in warnings:
             print(w)
+    return not warnings
 
 
 def main():
+    limits_are_valid = True
     for locale, data in LOCALES.items():
-        validate_limits(locale, data)
+        limits_are_valid = validate_limits(locale, data) and limits_are_valid
+
+    if not limits_are_valid:
+        raise SystemExit("\nMetadata exceeds one or more App Store limits; no files were written.")
+
+    for locale, data in LOCALES.items():
         locale_dir = os.path.join(BASE, locale)
         os.makedirs(locale_dir, exist_ok=True)
         for field in ("name", "subtitle", "keywords", "description", "release_notes"):
@@ -733,9 +741,13 @@ def main():
     print(f"\n✓ Generated metadata for {len(LOCALES)} locales in {BASE}/")
     print("\nLocale summary:")
     for locale, data in LOCALES.items():
-        n, s, k = len(data["name"]), len(data["subtitle"]), len(data["keywords"])
-        status = "✓" if n <= 30 and s <= 30 and k <= 100 else "⚠"
-        print(f"  {status} {locale:10s}  name={n:2d}/30  subtitle={s:2d}/30  keywords={k:3d}/100")
+        n, s = len(data["name"]), len(data["subtitle"])
+        keyword_bytes = len(data["keywords"].encode("utf-8"))
+        status = "✓" if n <= 30 and s <= 30 and keyword_bytes <= 100 else "⚠"
+        print(
+            f"  {status} {locale:10s}  name={n:2d}/30  subtitle={s:2d}/30  "
+            f"keyword-bytes={keyword_bytes:3d}/100"
+        )
 
 
 if __name__ == "__main__":

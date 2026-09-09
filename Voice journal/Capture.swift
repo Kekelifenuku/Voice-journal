@@ -19,6 +19,7 @@ struct CaptureView: View {
     /// Cached so the personalized-prompt computation doesn't re-run on every waveform frame.
     @State private var todaysPrompt = ""
     @State private var pulse = false
+    @AppStorage(VoiceJournalRoute.recordingRequestTokenKey) private var recordingRequestToken = ""
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.isPro) private var isPro
@@ -101,6 +102,7 @@ struct CaptureView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { consumePendingRecord() }
         }
+        .onChange(of: recordingRequestToken) { _, _ in consumePendingRecord() }
         // Reset the pulse when recording ends so its animation re-triggers next time (not just once).
         .onChange(of: engine.state) { _, s in
             if s == .idle { pulse = false }
@@ -300,10 +302,10 @@ struct CaptureView: View {
 
     /// Start recording automatically when launched via the "New Entry" Siri/Shortcut intent.
     private func consumePendingRecord() {
-        guard UserDefaults.standard.bool(forKey: "vj_pending_record"),
+        guard UserDefaults.standard.bool(forKey: VoiceJournalRoute.pendingRecordingKey),
               UserDefaults.standard.bool(forKey: "vj_onboarded"),
               engine.state == .idle else { return }
-        UserDefaults.standard.set(false, forKey: "vj_pending_record")
+        UserDefaults.standard.set(false, forKey: VoiceJournalRoute.pendingRecordingKey)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
             guard engine.state == .idle else { return }
             HX.heavy(); pulse = true

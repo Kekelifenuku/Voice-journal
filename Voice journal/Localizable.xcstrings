@@ -4531,61 +4531,61 @@
         }
       }
     },
-    "Everything stays on your device. No cloud, no account — no one else can read your journal." : {
+    "Your recordings, transcripts, and journal stay on this device. No account or journal cloud sync." : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles bleibt auf deinem Gerät. Keine Cloud, kein Konto — niemand sonst kann dein Tagebuch lesen."
+            "value" : "Deine Aufnahmen, Transkripte und dein Tagebuch bleiben auf diesem Gerät. Kein Konto und keine Cloud-Synchronisierung des Tagebuchs."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Todo permanece en tu dispositivo. Sin nube, sin cuenta — nadie más puede leer tu diario."
+            "value" : "Tus grabaciones, transcripciones y diario permanecen en este dispositivo. Sin cuenta ni sincronización del diario en la nube."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tout reste sur votre appareil. Pas de cloud, pas de compte — personne d'autre ne peut lire votre journal."
+            "value" : "Vos enregistrements, transcriptions et votre journal restent sur cet appareil. Aucun compte ni synchronisation cloud du journal."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tutto resta sul tuo dispositivo. Nessun cloud, nessun account — nessun altro può leggere il tuo diario."
+            "value" : "Le tue registrazioni, trascrizioni e il tuo diario restano su questo dispositivo. Nessun account né sincronizzazione cloud del diario."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "すべてがデバイス上に留まります。クラウドなし、アカウントなし — 誰もあなたの日記を読めません。"
+            "value" : "録音、文字起こし、日記はこのデバイスに保存されます。アカウントも日記のクラウド同期もありません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "모든 것이 기기에 남습니다. 클라우드도, 계정도 없습니다 — 아무도 당신의 일기를 읽을 수 없습니다."
+            "value" : "녹음, 받아쓰기, 일기는 이 기기에 저장됩니다. 계정이나 일기 클라우드 동기화가 없습니다."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Alles blijft op je apparaat. Geen cloud, geen account — niemand anders kan je dagboek lezen."
+            "value" : "Je opnamen, transcripties en dagboek blijven op dit apparaat. Geen account en geen cloudsynchronisatie van je dagboek."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tudo permanece no seu dispositivo. Sem nuvem, sem conta — ninguém mais pode ler seu diário."
+            "value" : "Suas gravações, transcrições e seu diário ficam neste dispositivo. Sem conta nem sincronização do diário na nuvem."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "一切都保留在你的设备上。没有云端，没有账户 — 没有人能读到你的日记。"
+            "value" : "录音、转写和日记内容保存在此设备上。无需账户，也不会同步日记到云端。"
           }
         }
       }
@@ -17262,61 +17262,61 @@
         }
       }
     },
-    "Your voice becomes searchable text, right on your phone. Nothing is uploaded, ever." : {
+    "Your voice becomes searchable text on your device. Recordings and transcripts are not uploaded." : {
       "extractionState" : "stale",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Deine Stimme wird zu durchsuchbarem Text, direkt auf deinem Handy. Nichts wird hochgeladen."
+            "value" : "Deine Stimme wird auf deinem Gerät zu durchsuchbarem Text. Aufnahmen und Transkripte werden nicht hochgeladen."
           }
         },
         "es" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tu voz se convierte en texto buscable, directamente en tu teléfono. Nada se sube, nunca."
+            "value" : "Tu voz se convierte en texto buscable en tu dispositivo. Las grabaciones y transcripciones no se suben."
           }
         },
         "fr" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Votre voix devient du texte consultable, directement sur votre téléphone. Rien n'est téléchargé."
+            "value" : "Votre voix devient du texte consultable sur votre appareil. Les enregistrements et transcriptions ne sont pas envoyés."
           }
         },
         "it" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "La tua voce diventa testo ricercabile, direttamente sul tuo telefono. Nulla viene caricato."
+            "value" : "La tua voce diventa testo ricercabile sul dispositivo. Registrazioni e trascrizioni non vengono caricate."
           }
         },
         "ja" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "あなたの声が検索可能なテキストになります。すべてデバイス上で完結。何もアップロードされません。"
+            "value" : "音声はデバイス上で検索可能なテキストになります。録音や文字起こしはアップロードされません。"
           }
         },
         "ko" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "당신의 목소리가 검색 가능한 텍스트가 됩니다. 모든 것이 휴대폰에서 처리됩니다. 업로드는 없습니다."
+            "value" : "음성이 기기에서 검색 가능한 텍스트로 변환됩니다. 녹음과 받아쓰기는 업로드되지 않습니다."
           }
         },
         "nl" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Je stem wordt doorzoekbare tekst, direct op je telefoon. Er wordt nooit iets geüpload."
+            "value" : "Je stem wordt op je apparaat omgezet in doorzoekbare tekst. Opnamen en transcripties worden niet geüpload."
           }
         },
         "pt-BR" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sua voz se torna texto pesquisável, direto no seu celular. Nada é enviado, nunca."
+            "value" : "Sua voz vira texto pesquisável no dispositivo. Gravações e transcrições não são enviadas."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的声音变为可搜索的文字，完全在手机上完成。绝不上传。"
+            "value" : "语音会在设备上转换为可搜索的文字。录音和转写不会上传。"
           }
         }
       }

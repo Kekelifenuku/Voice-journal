@@ -5,6 +5,25 @@ import AppIntents
 import Foundation
 import SwiftUI
 
+enum VoiceJournalRoute {
+    static let pendingRecordingKey = "vj_pending_record"
+    static let recordingRequestTokenKey = "vj_record_request_token"
+
+    static func requestRecording() {
+        UserDefaults.standard.set(true, forKey: pendingRecordingKey)
+        // The changing token lets an already-running app react even when its scene phase does not change.
+        UserDefaults.standard.set(UUID().uuidString, forKey: recordingRequestTokenKey)
+    }
+
+    static func handlesRecordingURL(_ url: URL) -> Bool {
+        guard url.scheme?.lowercased() == "voicejournal" else { return false }
+        if let host = url.host, !host.isEmpty {
+            return host.lowercased() == "record"
+        }
+        return url.pathComponents.dropFirst().first?.lowercased() == "record"
+    }
+}
+
 /// Opens the app on Capture and starts a recording.
 struct NewEntryIntent: AppIntent {
     static var title: LocalizedStringResource = "New Voice Journal Entry"
@@ -12,7 +31,7 @@ struct NewEntryIntent: AppIntent {
     static var openAppWhenRun = true
 
     func perform() async throws -> some IntentResult {
-        UserDefaults.standard.set(true, forKey: "vj_pending_record")
+        VoiceJournalRoute.requestRecording()
         return .result()
     }
 }

@@ -1,9 +1,9 @@
 Voice Journal turns your spoken thoughts into a private, searchable diary — no typing, no formatting needed.
 
-Press once and speak freely. Every word is transcribed right on your device using on-device AI — no internet connection required. The moment you finish speaking, your thoughts become searchable text.
+Press once and speak freely. Transcription runs on your device using on-device AI. Once the selected speech model has downloaded, transcription works offline. The moment you finish speaking, your thoughts become searchable text.
 
 ── PRIVATE BY DESIGN ──
-Nothing ever leaves your phone. No account to create, no cloud storage, no one else who can read your entries. Just you and your thoughts.
+Your recordings, transcripts, and journal entries stay on your device. Voice Journal has no account or journal cloud sync. Internet is used to download speech models, manage purchases and the subscription screen, and fetch daily motivation; your journal content is not sent with those requests.
 
 ── REFLECT ON YOUR PATTERNS ──
 Each entry gets a quiet AI summary, a mood tag, and recurring themes. Over time you'll see exactly what your mind returns to most.
@@ -13,7 +13,7 @@ Every day brings a fresh reflection prompt and a small moment of motivation — 
 
 ── BUILT FOR HOW YOU THINK ──
 • Tap once to record — no setup, no friction
-• On-device transcription, fully offline
+• On-device transcription after the speech-model download
 • Calendar to browse your history
 • Instant search across every entry
 • Favorites for the moments that matter

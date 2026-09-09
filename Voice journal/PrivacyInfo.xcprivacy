@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Voice Journal does not track users and collects no data off-device.
-	     Transcription is fully on-device; only a plain motivational-quote GET and
-	     RevenueCat purchase checks leave the device, and neither carries journal content. -->
+	<!-- Voice Journal does not track users or send journal content off-device.
+	     Transcription is on-device, and the motivational-quote request carries no journal content.
+	     RevenueCat's bundled privacy manifest declares its non-linked purchase-history collection. -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>

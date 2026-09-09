@@ -1,9 +1,9 @@
 Voice Journal transforme vos pensées vocales en un journal intime privé et consultable — sans saisie au clavier.
 
-Appuyez une fois et parlez librement. Chaque mot est transcrit directement sur votre appareil par une IA locale — aucune connexion internet requise. Dès que vous avez fini de parler, vos pensées deviennent un texte consultable.
+Appuyez une fois et parlez librement. Chaque mot est transcrit directement sur votre appareil par une IA locale. Dès que vous avez fini de parler, vos pensées deviennent un texte consultable.
 
 ── PRIVÉ PAR CONCEPTION ──
-Rien ne quitte jamais votre téléphone. Pas de compte à créer, pas de cloud, personne d'autre ne peut lire vos entrées. Juste vous et vos pensées.
+Vos enregistrements, transcriptions et entrées restent sur votre appareil. Aucun compte et aucune synchronisation cloud de votre journal.
 
 ── DÉCOUVREZ VOS SCHÉMAS ──
 Chaque entrée reçoit un résumé IA discret, une étiquette d'humeur et des thèmes récurrents. Au fil du temps, vous verrez ce qui occupe vraiment votre esprit.
@@ -13,7 +13,7 @@ Chaque jour apporte une nouvelle invitation à la réflexion et une petite dose 
 
 ── CONÇU POUR VOTRE FAÇON DE PENSER ──
 • Enregistrement en un seul toucher
-• Transcription entièrement hors ligne
+• Transcription directement sur l'appareil
 • Calendrier pour parcourir votre historique
 • Recherche instantanée dans toutes les entrées
 • Favoris pour les moments importants
